@@ -1,5 +1,7 @@
 # Feedny - Application de Feedback Étudiant
 
+<!-- Railway build trigger: updated 2025-02-03 -->
+
 <div align="center">
 
 ![Feedny Logo](https://img.shields.io/badge/Feedny-Feedback_Anonyme-black?style=for-the-badge)

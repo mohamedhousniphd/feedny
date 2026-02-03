@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Feedny - Feedback Étudiant</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Feedny</h1>
+            <p class="subtitle">Partagez votre feedback</p>
+        </div>
+
+        <div id="feedback-form" class="feedback-form">
+            <div class="form-group">
+                <label for="feedback-content">Votre feedback</label>
+                <textarea
+                    id="feedback-content"
+                    maxlength="240"
+                    placeholder="Partagez vos pensées... (max 240 caractères)"
+                    rows="5"
+                ></textarea>
+                <div class="char-count">
+                    <span id="current-chars">0</span>/240
+                </div>
+            </div>
+
+            <button id="submit-btn" class="btn btn-primary" type="submit">
+                Envoyer
+            </button>
+        </div>
+
+        <div id="success-message" class="success-message hidden">
+            <div class="success-icon">✓</div>
+            <h2>Merci !</h2>
+            <p>Votre feedback a été enregistré avec succès.</p>
+            <p class="info">L'enseignant analysera les feedbacks avant d'ouvrir une nouvelle collecte.</p>
+        </div>
+
+        <div id="already-submitted" class="info-message hidden">
+            <div class="info-icon">ℹ</div>
+            <h2>Déjà envoyé</h2>
+            <p>Vous avez déjà soumis un feedback.</p>
+            <p class="info">Veuillez attendre que l'enseignant ouvre une nouvelle collecte.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Feedny - Feedback Anonyme</p>
+    </footer>
+
+    <script>
+        // Check if user can submit
+        const canSubmit = {{can_submit}};
+        const deviceId = '{{device_id}}';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('feedback-form');
+            const successMessage = document.getElementById('success-message');
+            const alreadySubmitted = document.getElementById('already-submitted');
+            const textarea = document.getElementById('feedback-content');
+            const submitBtn = document.getElementById('submit-btn');
+            const currentChars = document.getElementById('current-chars');
+
+            // Show appropriate message based on submission status
+            if (!canSubmit) {
+                form.classList.add('hidden');
+                alreadySubmitted.classList.remove('hidden');
+                return;
+            }
+
+            // Character counter
+            textarea.addEventListener('input', function() {
+                const length = this.value.length;
+                currentChars.textContent = length;
+
+                if (length >= 240) {
+                    currentChars.style.color = '#ef4444';
+                } else if (length >= 200) {
+                    currentChars.style.color = '#f59e0b';
+                } else {
+                    currentChars.style.color = '#6b7280';
+                }
+            });
+
+            // Submit feedback
+            submitBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const content = textarea.value.trim();
+
+                if (!content) {
+                    alert('Veuillez entrer votre feedback');
+                    return;
+                }
+
+                if (content.length > 240) {
+                    alert('Votre feedback dépasse la limite de 240 caractères');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Envoi en cours...';
+
+                try {
+                    const response = await fetch('/api/feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ content: content })
+                    });
+
+                    if (response.ok) {
+                        form.classList.add('hidden');
+                        successMessage.classList.remove('hidden');
+                    } else {
+                        const error = await response.json();
+                        alert(error.detail || 'Erreur lors de l\'envoi');
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Envoyer';
+                    }
+                } catch (error) {
+                    alert('Erreur de connexion. Veuillez réessayer.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Envoyer';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

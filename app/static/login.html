@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedny - Connexion Enseignant</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container login-container">
+        <div class="header">
+            <h1>🔐 Feedny</h1>
+            <p class="subtitle">Connexion Enseignant</p>
+        </div>
+
+        <form id="login-form" class="login-form">
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Entrez votre mot de passe"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                Se connecter
+            </button>
+        </form>
+
+        <div id="error-message" class="error-message hidden">
+            <p>Mot de passe incorrect</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Feedny</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('login-form');
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('error-message');
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                errorMessage.classList.add('hidden');
+
+                try {
+                    const response = await fetch('/api/teacher/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ password: passwordInput.value })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        window.location.href = '/teacher';
+                    } else {
+                        errorMessage.classList.remove('hidden');
+                        passwordInput.value = '';
+                    }
+                } catch (error) {
+                    alert('Erreur de connexion. Veuillez réessayer.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

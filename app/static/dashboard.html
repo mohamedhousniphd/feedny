@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedny - Tableau de Bord</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container dashboard-container">
+        <div class="header">
+            <h1>👨‍🏫 Feedny</h1>
+            <p class="subtitle">Tableau de Bord Enseignant</p>
+            <button id="logout-btn" class="btn btn-secondary btn-small">Déconnexion</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="total-feedbacks">0</div>
+                <div class="stat-label">Total Feedbacks</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="selected-feedbacks">0</div>
+                <div class="stat-label">Sélectionnés</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button id="refresh-btn" class="btn btn-secondary" title="Rafraîchir">
+                🔄 Rafraîchir
+            </button>
+            <button id="export-btn" class="btn btn-secondary" title="Exporter CSV">
+                📥 Exporter CSV
+            </button>
+            <button id="reset-btn" class="btn btn-danger" title="Réinitialiser">
+                🗑️ Réinitialiser
+            </button>
+        </div>
+
+        <!-- Feedbacks Table -->
+        <div class="feedbacks-section">
+            <h2>Feedbacks Reçus</h2>
+            <div class="table-container">
+                <table id="feedbacks-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-column">
+                                <input type="checkbox" id="select-all">
+                            </th>
+                            <th>Feedback</th>
+                            <th>Date</th>
+                            <th>Inclure</th>
+                        </tr>
+                    </thead>
+                    <tbody id="feedbacks-body">
+                        <!-- Feedbacks will be loaded here -->
+                    </tbody>
+                </table>
+                <div id="no-feedbacks" class="no-data hidden">
+                    <p>Aucun feedback reçu pour le moment</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Section -->
+        <div class="analysis-section">
+            <h2>Analyse</h2>
+            <div class="form-group">
+                <label for="context">Contexte (pour aider l'IA)</label>
+                <textarea
+                    id="context"
+                    rows="3"
+                    placeholder="Ex: Cours de mathématiques sur les équations différentielles du 15 janvier 2024..."
+                    maxlength="1000"
+                ></textarea>
+            </div>
+            <button id="analyze-btn" class="btn btn-primary">
+                📊 Analyser les Feedbacks Sélectionnés
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="results-section hidden">
+            <h2>Résultats</h2>
+            <div id="wordcloud-container" class="wordcloud-container">
+                <img id="wordcloud-image" src="" alt="Nuage de mots">
+            </div>
+            <div class="summary-container">
+                <h3>Résumé IA</h3>
+                <div id="summary-text"></div>
+            </div>
+            <button id="download-wordcloud-btn" class="btn btn-secondary">
+                💾 Télécharger le Nuage de Mots
+            </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner"></div>
+            <p>Analyse en cours...</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2024 Feedny</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFeedbacks();
+            loadStats();
+
+            // Event listeners
+            document.getElementById('refresh-btn').addEventListener('click', () => {
+                loadFeedbacks();
+                loadStats();
+            });
+
+            document.getElementById('export-btn').addEventListener('click', exportCSV);
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('reset-btn').addEventListener('click', resetDatabase);
+            document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
+            document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
+            document.getElementById('download-wordcloud-btn').addEventListener('click', downloadWordcloud);
+        });
+
+        let currentWordcloudImage = '';
+
+        async function loadFeedbacks() {
+            try {
+                const response = await fetch('/api/feedbacks');
+                const data = await response.json();
+
+                const tbody = document.getElementById('feedbacks-body');
+                const noFeedbacks = document.getElementById('no-feedbacks');
+
+                if (data.feedbacks.length === 0) {
+                    tbody.innerHTML = '';
+                    noFeedbacks.classList.remove('hidden');
+                    return;
+                }
+
+                noFeedbacks.classList.add('hidden');
+
+                tbody.innerHTML = data.feedbacks.map(fb => `
+                    <tr data-id="${fb.id}">
+                        <td class="checkbox-column">
+                            <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
+                        </td>
+                        <td class="feedback-content">${escapeHtml(fb.content)}</td>
+                        <td class="feedback-date">${formatDate(fb.created_at)}</td>
+                        <td class="feedback-status">
+                            ${fb.included_in_analysis ? '<span class="status-included">✓</span>' : '<span class="status-excluded">✗</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Add change listeners to checkboxes
+                document.querySelectorAll('.feedback-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', async function() {
+                        const feedbackId = parseInt(this.value);
+                        await toggleFeedback(feedbackId);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error loading feedbacks:', error);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                document.getElementById('total-feedbacks').textContent = stats.total;
+                document.getElementById('selected-feedbacks').textContent = stats.selected;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        async function toggleFeedback(feedbackId) {
+            try {
+                await fetch(`/api/feedbacks/${feedbackId}/toggle`, {
+                    method: 'PUT'
+                });
+                loadFeedbacks();
+                loadStats();
+            } catch (error) {
+                console.error('Error toggling feedback:', error);
+            }
+        }
+
+        function toggleAllCheckboxes(e) {
+            const checkboxes = document.querySelectorAll('.feedback-checkbox');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+        }
+
+        async function analyzeFeedbacks() {
+            const selectedIds = Array.from(document.querySelectorAll('.feedback-checkbox:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (selectedIds.length === 0) {
+                alert('Veuillez sélectionner au moins un feedback');
+                return;
+            }
+
+            const context = document.getElementById('context').value.trim();
+            if (!context) {
+                alert('Veuillez fournir un contexte pour l\'analyse');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        feedback_ids: selectedIds,
+                        context: context
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayResults(data);
+                } else {
+                    alert('Erreur lors de l\'analyse: ' + (data.detail || 'Erreur inconnue'));
+                }
+            } catch (error) {
+                console.error('Error analyzing feedbacks:', error);
+                alert('Erreur de connexion. Veuillez réessayer.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayResults(data) {
+            const resultsSection = document.getElementById('results-section');
+            const wordcloudImage = document.getElementById('wordcloud-image');
+            const summaryText = document.getElementById('summary-text');
+
+            if (data.wordcloud_data && data.wordcloud_data.image) {
+                currentWordcloudImage = data.wordcloud_data.image;
+                wordcloudImage.src = 'data:image/png;base64,' + data.wordcloud_data.image;
+            }
+
+            summaryText.innerHTML = formatMarkdown(data.summary);
+            resultsSection.classList.remove('hidden');
+        }
+
+        function downloadWordcloud() {
+            if (!currentWordcloudImage) return;
+
+            const link = document.createElement('a');
+            link.href = 'data:image/png;base64,' + currentWordcloudImage;
+            link.download = 'feedny_wordcloud.png';
+            link.click();
+        }
+
+        async function exportCSV() {
+            try {
+                window.location.href = '/api/export/csv';
+            } catch (error) {
+                console.error('Error exporting CSV:', error);
+                alert('Erreur lors de l\'export CSV');
+            }
+        }
+
+        async function resetDatabase() {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer tous les feedbacks?')) {
+                return;
+            }
+
+            if (!confirm('Cette action est irréversible. Continuer?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/reset', {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    alert('Base de données réinitialisée avec succès');
+                    location.reload();
+                } else {
+                    alert('Erreur lors de la réinitialisation');
+                }
+            } catch (error) {
+                console.error('Error resetting database:', error);
+                alert('Erreur de connexion. Veuillez réessayer.');
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/teacher/logout', { method: 'POST' });
+                window.location.href = '/teacher';
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        function showLoading(show) {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatMarkdown(text) {
+            return text
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        }
+    </script>
+</body>
+</html>

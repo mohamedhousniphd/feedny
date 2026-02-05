@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Feedny - Feedback Étudiant</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -16,15 +18,28 @@
         <div id="feedback-form" class="feedback-form">
             <div class="form-group">
                 <label for="feedback-content">Votre feedback</label>
-                <textarea
-                    id="feedback-content"
-                    maxlength="240"
-                    placeholder="Partagez vos pensées... (max 240 caractères)"
-                    rows="5"
-                ></textarea>
+                <textarea id="feedback-content" maxlength="240"
+                    placeholder="Partagez vos pensées... (max 240 caractères)" rows="5"></textarea>
                 <div class="char-count">
                     <span id="current-chars">0</span>/240
                 </div>
+            </div>
+
+            <div class="form-group emoji-section">
+                <label>Comment vous sentez-vous ?</label>
+                <div class="emoji-picker" id="emoji-picker">
+                    <button type="button" class="emoji-btn" data-emotion="1" title="Très triste">😢</button>
+                    <button type="button" class="emoji-btn" data-emotion="2" title="Triste">😔</button>
+                    <button type="button" class="emoji-btn" data-emotion="3" title="Déçu">😕</button>
+                    <button type="button" class="emoji-btn" data-emotion="4" title="Neutre">😐</button>
+                    <button type="button" class="emoji-btn" data-emotion="5" title="Content">🙂</button>
+                    <button type="button" class="emoji-btn" data-emotion="6" title="Satisfait">😊</button>
+                    <button type="button" class="emoji-btn" data-emotion="7" title="Heureux">😃</button>
+                    <button type="button" class="emoji-btn" data-emotion="8" title="Très heureux">😄</button>
+                    <button type="button" class="emoji-btn" data-emotion="9" title="Ravi">🤩</button>
+                    <button type="button" class="emoji-btn" data-emotion="10" title="Euphorique">🥳</button>
+                </div>
+                <input type="hidden" id="selected-emotion" value="">
             </div>
 
             <button id="submit-btn" class="btn btn-primary" type="submit">
@@ -53,16 +68,18 @@
 
     <script>
         // Check if user can submit
-        const canSubmit = {{can_submit}};
+        const canSubmit = {{ can_submit }};
         const deviceId = '{{device_id}}';
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('feedback-form');
             const successMessage = document.getElementById('success-message');
             const alreadySubmitted = document.getElementById('already-submitted');
             const textarea = document.getElementById('feedback-content');
             const submitBtn = document.getElementById('submit-btn');
             const currentChars = document.getElementById('current-chars');
+            const emojiPicker = document.getElementById('emoji-picker');
+            const selectedEmotionInput = document.getElementById('selected-emotion');
 
             // Show appropriate message based on submission status
             if (!canSubmit) {
@@ -71,8 +88,20 @@
                 return;
             }
 
+            // Emoji picker logic
+            emojiPicker.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    // Remove selected class from all buttons
+                    emojiPicker.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+                    // Add selected class to clicked button
+                    this.classList.add('selected');
+                    // Store the emotion value
+                    selectedEmotionInput.value = this.dataset.emotion;
+                });
+            });
+
             // Character counter
-            textarea.addEventListener('input', function() {
+            textarea.addEventListener('input', function () {
                 const length = this.value.length;
                 currentChars.textContent = length;
 
@@ -86,9 +115,10 @@
             });
 
             // Submit feedback
-            submitBtn.addEventListener('click', async function(e) {
+            submitBtn.addEventListener('click', async function (e) {
                 e.preventDefault();
                 const content = textarea.value.trim();
+                const emotion = selectedEmotionInput.value ? parseInt(selectedEmotionInput.value) : null;
 
                 if (!content) {
                     alert('Veuillez entrer votre feedback');
@@ -104,12 +134,17 @@
                 submitBtn.textContent = 'Envoi en cours...';
 
                 try {
+                    const payload = { content: content };
+                    if (emotion) {
+                        payload.emotion = emotion;
+                    }
+
                     const response = await fetch('/api/feedback', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ content: content })
+                        body: JSON.stringify(payload)
                     });
 
                     if (response.ok) {
@@ -130,4 +165,5 @@
         });
     </script>
 </body>
+
 </html>

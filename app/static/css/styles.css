@@ -519,3 +519,69 @@ footer {
         padding: 12px 20px;
     }
 }
+
+/* Emoji Picker */
+.emoji-section {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.emoji-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 16px;
+    background-color: var(--color-border);
+    border-radius: 12px;
+}
+
+.emoji-btn {
+    font-size: 1.75rem;
+    width: 48px;
+    height: 48px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    background-color: var(--color-background);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji-btn:hover {
+    transform: scale(1.15);
+    border-color: var(--color-border-dark);
+}
+
+.emoji-btn.selected {
+    border-color: var(--color-primary);
+    background-color: var(--color-border);
+    transform: scale(1.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Emotion display in table */
+.feedback-emotion {
+    font-size: 1.25rem;
+    text-align: center;
+    width: 60px;
+}
+
+/* Import button file input */
+.import-file-input {
+    display: none;
+}
+
+/* PDF download button */
+.btn-pdf {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.btn-pdf:hover:not(:disabled) {
+    background-color: #991b1b;
+}
+

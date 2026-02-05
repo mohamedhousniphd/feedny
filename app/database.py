@@ -2,6 +2,7 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Optional
 from datetime import datetime
+import uuid
 
 
 DATABASE_URL = "feedny.db"
@@ -22,7 +23,7 @@ def get_db():
 
 
 def init_db():
-    """Initialize the database with required tables."""
+    """Initialize the database with required tables and run migrations."""
     with get_db() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS feedbacks (
@@ -30,7 +31,8 @@ def init_db():
                 content TEXT NOT NULL,
                 device_id TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                included_in_analysis BOOLEAN DEFAULT 0
+                included_in_analysis BOOLEAN DEFAULT 0,
+                emotion INTEGER DEFAULT NULL
             )
         """)
         conn.execute("""
@@ -41,14 +43,21 @@ def init_db():
             )
         """)
         conn.commit()
+        
+        # Migration: Add emotion column if it doesn't exist
+        try:
+            conn.execute("SELECT emotion FROM feedbacks LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE feedbacks ADD COLUMN emotion INTEGER DEFAULT NULL")
+            conn.commit()
 
 
-def insert_feedback(content: str, device_id: str) -> int:
+def insert_feedback(content: str, device_id: str, emotion: Optional[int] = None) -> int:
     """Insert a new feedback and return its ID."""
     with get_db() as conn:
         cursor = conn.execute(
-            "INSERT INTO feedbacks (content, device_id) VALUES (?, ?)",
-            (content, device_id)
+            "INSERT INTO feedbacks (content, device_id, emotion) VALUES (?, ?, ?)",
+            (content, device_id, emotion)
         )
         conn.commit()
         return cursor.lastrowid
@@ -59,7 +68,7 @@ def get_all_feedbacks() -> list[dict]:
     with get_db() as conn:
         cursor = conn.execute(
             """
-            SELECT id, content, device_id, created_at, included_in_analysis
+            SELECT id, content, device_id, created_at, included_in_analysis, emotion
             FROM feedbacks
             ORDER BY created_at DESC
             """
@@ -71,7 +80,7 @@ def get_feedback_by_id(feedback_id: int) -> Optional[dict]:
     """Get a single feedback by ID."""
     with get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, device_id, created_at, included_in_analysis FROM feedbacks WHERE id = ?",
+            "SELECT id, content, device_id, created_at, included_in_analysis, emotion FROM feedbacks WHERE id = ?",
             (feedback_id,)
         )
         row = cursor.fetchone()
@@ -96,7 +105,7 @@ def get_feedbacks_by_ids(feedback_ids: list[int]) -> list[dict]:
     with get_db() as conn:
         placeholders = ','.join('?' * len(feedback_ids))
         cursor = conn.execute(
-            f"SELECT id, content, device_id, created_at, included_in_analysis FROM feedbacks WHERE id IN ({placeholders})",
+            f"SELECT id, content, device_id, created_at, included_in_analysis, emotion FROM feedbacks WHERE id IN ({placeholders})",
             feedback_ids
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -154,3 +163,36 @@ def get_feedback_stats() -> dict:
             "total": row["total"] or 0,
             "selected": row["selected"] or 0
         }
+
+
+def import_feedbacks(feedbacks_data: list[dict]) -> int:
+    """
+    Import multiple feedbacks from exported data.
+    Returns the number of feedbacks imported.
+    """
+    if not feedbacks_data:
+        return 0
+    
+    imported_count = 0
+    with get_db() as conn:
+        for fb in feedbacks_data:
+            device_id = fb.get('device_id') or str(uuid.uuid4())
+            created_at = fb.get('created_at')
+            emotion = fb.get('emotion')
+            included = 1 if fb.get('included_in_analysis') else 0
+            
+            if created_at:
+                conn.execute(
+                    """INSERT INTO feedbacks (content, device_id, created_at, included_in_analysis, emotion)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (fb['content'], device_id, created_at, included, emotion)
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO feedbacks (content, device_id, included_in_analysis, emotion)
+                       VALUES (?, ?, ?, ?)""",
+                    (fb['content'], device_id, included, emotion)
+                )
+            imported_count += 1
+        conn.commit()
+    return imported_count

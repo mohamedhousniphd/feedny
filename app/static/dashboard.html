@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedny - Tableau de Bord</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
+
 <body>
     <div class="container dashboard-container">
         <div class="header">
@@ -31,9 +33,16 @@
             <button id="refresh-btn" class="btn btn-secondary" title="Rafraîchir">
                 🔄 Rafraîchir
             </button>
-            <button id="export-btn" class="btn btn-secondary" title="Exporter CSV">
-                📥 Exporter CSV
+            <button id="export-csv-btn" class="btn btn-secondary" title="Exporter CSV">
+                📥 CSV
             </button>
+            <button id="export-json-btn" class="btn btn-secondary" title="Exporter JSON">
+                💾 Export JSON
+            </button>
+            <button id="import-json-btn" class="btn btn-secondary" title="Importer JSON">
+                📤 Import JSON
+            </button>
+            <input type="file" id="import-file-input" class="import-file-input" accept=".json">
             <button id="reset-btn" class="btn btn-danger" title="Réinitialiser">
                 🗑️ Réinitialiser
             </button>
@@ -50,6 +59,7 @@
                                 <input type="checkbox" id="select-all">
                             </th>
                             <th>Feedback</th>
+                            <th>Émotion</th>
                             <th>Date</th>
                             <th>Inclure</th>
                         </tr>
@@ -69,12 +79,9 @@
             <h2>Analyse</h2>
             <div class="form-group">
                 <label for="context">Contexte (pour aider l'IA)</label>
-                <textarea
-                    id="context"
-                    rows="3"
+                <textarea id="context" rows="3"
                     placeholder="Ex: Cours de mathématiques sur les équations différentielles du 15 janvier 2024..."
-                    maxlength="1000"
-                ></textarea>
+                    maxlength="1000"></textarea>
             </div>
             <button id="analyze-btn" class="btn btn-primary">
                 📊 Analyser les Feedbacks Sélectionnés
@@ -94,6 +101,9 @@
             <button id="download-wordcloud-btn" class="btn btn-secondary">
                 💾 Télécharger le Nuage de Mots
             </button>
+            <button id="download-pdf-btn" class="btn btn-pdf">
+                📄 Télécharger PDF
+            </button>
         </div>
 
         <!-- Loading Overlay -->
@@ -108,7 +118,7 @@
     </footer>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadFeedbacks();
             loadStats();
 
@@ -118,12 +128,18 @@
                 loadStats();
             });
 
-            document.getElementById('export-btn').addEventListener('click', exportCSV);
+            document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+            document.getElementById('export-json-btn').addEventListener('click', exportJSON);
+            document.getElementById('import-json-btn').addEventListener('click', () => {
+                document.getElementById('import-file-input').click();
+            });
+            document.getElementById('import-file-input').addEventListener('change', importJSON);
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('reset-btn').addEventListener('click', resetDatabase);
             document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
             document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
             document.getElementById('download-wordcloud-btn').addEventListener('click', downloadWordcloud);
+            document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
         });
 
         let currentWordcloudImage = '';
@@ -150,6 +166,7 @@
                             <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
                         </td>
                         <td class="feedback-content">${escapeHtml(fb.content)}</td>
+                        <td class="feedback-emotion">${getEmotionEmoji(fb.emotion)}</td>
                         <td class="feedback-date">${formatDate(fb.created_at)}</td>
                         <td class="feedback-status">
                             ${fb.included_in_analysis ? '<span class="status-included">✓</span>' : '<span class="status-excluded">✗</span>'}
@@ -159,7 +176,7 @@
 
                 // Add change listeners to checkboxes
                 document.querySelectorAll('.feedback-checkbox').forEach(checkbox => {
-                    checkbox.addEventListener('change', async function() {
+                    checkbox.addEventListener('change', async function () {
                         const feedbackId = parseInt(this.value);
                         await toggleFeedback(feedbackId);
                     });
@@ -252,6 +269,9 @@
                 wordcloudImage.src = 'data:image/png;base64,' + data.wordcloud_data.image;
             }
 
+            // Store analysis text for PDF export
+            currentAnalysisData = data.summary;
+
             summaryText.innerHTML = formatMarkdown(data.summary);
             resultsSection.classList.remove('hidden');
         }
@@ -341,6 +361,119 @@
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>');
         }
+
+        // Emotion emoji mapping
+        function getEmotionEmoji(emotion) {
+            const emojis = {
+                1: '😢', 2: '😔', 3: '😕', 4: '😐', 5: '🙂',
+                6: '😊', 7: '😃', 8: '😄', 9: '🤩', 10: '🥳'
+            };
+            return emotion ? emojis[emotion] || '—' : '—';
+        }
+
+        // Export JSON
+        async function exportJSON() {
+            try {
+                window.location.href = '/api/export/json';
+            } catch (error) {
+                console.error('Error exporting JSON:', error);
+                alert('Erreur lors de l\'export JSON');
+            }
+        }
+
+        // Import JSON
+        async function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!confirm('Importer ce fichier ajoutera les feedbacks à la base existante. Continuer?')) {
+                event.target.value = '';
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async function (e) {
+                    try {
+                        const response = await fetch('/api/import', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: e.target.result
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            alert(result.message);
+                            loadFeedbacks();
+                            loadStats();
+                        } else {
+                            alert('Erreur: ' + (result.detail || 'Erreur inconnue'));
+                        }
+                    } catch (err) {
+                        alert('Erreur lors de l\'import: ' + err.message);
+                    }
+                    showLoading(false);
+                };
+                reader.readAsText(file);
+            } catch (error) {
+                console.error('Error importing JSON:', error);
+                alert('Erreur lors de la lecture du fichier');
+                showLoading(false);
+            }
+
+            event.target.value = '';
+        }
+
+        // Store analysis data for PDF
+        let currentAnalysisData = null;
+
+        // Download PDF
+        async function downloadPDF() {
+            if (!currentWordcloudImage || !currentAnalysisData) {
+                alert('Veuillez d\'abord analyser les feedbacks');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/export/pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        wordcloud_image: currentWordcloudImage,
+                        analysis_text: currentAnalysisData,
+                        context: document.getElementById('context').value.trim()
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `feedny_analyse_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const error = await response.json();
+                    alert('Erreur: ' + (error.detail || 'Erreur lors de la génération du PDF'));
+                }
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                alert('Erreur de connexion. Veuillez réessayer.');
+            }
+
+            showLoading(false);
+        }
     </script>
 </body>
+
 </html>

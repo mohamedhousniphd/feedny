@@ -5,6 +5,7 @@ from typing import Optional, Literal
 
 class FeedbackRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=240)
+    emotion: Optional[int] = Field(None, ge=1, le=10, description="Emotional state from 1 (sad) to 10 (very happy)")
 
 
 class FeedbackResponse(BaseModel):
@@ -13,6 +14,7 @@ class FeedbackResponse(BaseModel):
     device_id: str
     created_at: datetime
     included_in_analysis: bool
+    emotion: Optional[int] = None
 
 
 class FeedbackListResponse(BaseModel):
@@ -48,3 +50,11 @@ class StatusResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
+
+
+class ImportFeedbackItem(BaseModel):
+    content: str
+    device_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    included_in_analysis: Optional[bool] = False
+    emotion: Optional[int] = Field(None, ge=1, le=10)

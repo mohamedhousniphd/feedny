@@ -10,15 +10,17 @@ DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 async def analyze_feedbacks(
     feedbacks: list[str],
     context: str,
-    max_tokens: int = 1000
+    max_tokens: int = 800,
+    emotions: Optional[list[int]] = None
 ) -> Optional[str]:
     """
-    Analyze feedbacks using DeepSeek API.
+    Analyze feedbacks using DeepSeek API with optimized settings.
 
     Args:
         feedbacks: List of feedback texts
         context: Context provided by the teacher
-        max_tokens: Maximum tokens for the response
+        max_tokens: Maximum tokens for the response (reduced for faster response)
+        emotions: Optional list of emotion values (1-10) corresponding to feedbacks
 
     Returns:
         Generated summary or None if failed
@@ -29,36 +31,53 @@ async def analyze_feedbacks(
     if not feedbacks:
         raise ValueError("No feedbacks to analyze")
 
-    # Combine feedbacks
-    feedbacks_text = "\n\n".join([f"- {fb}" for fb in feedbacks])
+    # Combine feedbacks with emotions if available
+    feedbacks_text = ""
+    for i, fb in enumerate(feedbacks):
+        emotion_str = ""
+        if emotions and i < len(emotions) and emotions[i]:
+            emotion_labels = {
+                1: "très triste", 2: "triste", 3: "déçu", 4: "neutre", 5: "content",
+                6: "satisfait", 7: "heureux", 8: "très heureux", 9: "ravi", 10: "euphorique"
+            }
+            emotion_str = f" [État émotionnel: {emotion_labels.get(emotions[i], 'inconnu')}]"
+        feedbacks_text += f"- {fb}{emotion_str}\n"
 
-    # Create prompt
+    # Calculate emotion summary if available
+    emotion_summary = ""
+    if emotions:
+        valid_emotions = [e for e in emotions if e is not None]
+        if valid_emotions:
+            avg_emotion = sum(valid_emotions) / len(valid_emotions)
+            emotion_summary = f"\n\nRésumé émotionnel: Moyenne {avg_emotion:.1f}/10 sur {len(valid_emotions)} réponses."
+
+    # Optimized prompt for faster and more accurate analysis
     system_prompt = """Tu es un assistant pédagogique expert qui analyse les feedbacks des étudiants.
 
 Ta tâche:
-- Analyser les feedbacks fournis
-- Identifier les thèmes principaux et les points clés
-- Générer un résumé concis et informatif (maximum une page)
-- Mettre en évidence les forces et les domaines d'amélioration
-- Maintenir un ton constructif et professionnel
+- Analyser les feedbacks fournis rapidement et précisément
+- Identifier les thèmes principaux et patterns
+- Générer un résumé structuré et actionnable
+- Prendre en compte l'état émotionnel des étudiants si fourni
 
-Format de réponse:
-1. Résumé général (2-3 phrases)
-2. Points positifs principaux
-3. Points à améliorer
-4. Recommandations pour l'enseignant
+Format de réponse (sois concis):
+1. **Résumé général** (2-3 phrases max)
+2. **Points positifs** (liste courte)
+3. **Points à améliorer** (liste courte)
+4. **Recommandations** (2-3 actions concrètes)
 
-Écris en français."""
+Écris en français. Sois direct et concis."""
 
-    user_prompt = f"""Contexte: {context}
+    user_prompt = f"""Contexte: {context if context else "Non spécifié"}
 
 Feedbacks des étudiants:
-{feedbacks_text}
+{feedbacks_text}{emotion_summary}
 
-Génère un résumé concis et informatif."""
+Génère un résumé concis et actionnable."""
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        # Increased timeout for reliability, reduced temperature for consistency
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 f"{DEEPSEEK_BASE_URL}/chat/completions",
                 headers={
@@ -73,7 +92,7 @@ Génère un résumé concis et informatif."""
                     ],
                     "stream": False,
                     "max_tokens": max_tokens,
-                    "temperature": 0.7
+                    "temperature": 0.3  # Lower temperature for more consistent results
                 }
             )
 
@@ -87,3 +106,4 @@ Génère un résumé concis et informatif."""
     except Exception as e:
         print(f"Error calling DeepSeek API: {e}")
         return None
+

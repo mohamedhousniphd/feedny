@@ -1,5 +1,6 @@
 import io
 import base64
+import re
 from typing import Optional
 from stopwordsiso import stopwords
 from wordcloud import WordCloud
@@ -11,37 +12,72 @@ import matplotlib.pyplot as plt
 matplotlib.use('Agg')
 
 
-def get_french_stopwords() -> set[str]:
-    """Get French stopwords for filtering."""
+def detect_has_arabic(text: str) -> bool:
+    """Check if text contains Arabic characters."""
+    arabic_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+')
+    return bool(arabic_pattern.search(text))
+
+
+def wrap_arabic_words(text: str) -> str:
+    """
+    Wrap Arabic words with Unicode RTL control characters for proper display.
+    Uses Right-to-Left Isolate (U+2067) and Pop Directional Isolate (U+2069).
+    """
+    arabic_pattern = re.compile(r'([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)')
+    # Use chr() to safely embed unicode control characters
+    return arabic_pattern.sub(f"{chr(0x2067)}\\1{chr(0x2069)}", text)
+
+
+def get_multilingual_stopwords() -> set[str]:
+    """Get combined stopwords for French, English, and Arabic."""
+    combined_stopwords = set()
+    
+    # Add French stopwords
     try:
-        return set(stopwords('fr'))
+        combined_stopwords.update(stopwords('fr'))
     except Exception:
-        # Fallback to hardcoded list if stopwordsiso fails
-        return set([
-            # Articles
+        combined_stopwords.update([
             'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'au', 'aux',
-            # Pronouns
             'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles', 'je', 'tu',
-            # Prepositions & Conjunctions
-            'et', 'ou', 'or', 'mais', 'où', 'dont', 'que', 'qui', 'qu\'',
-            'l\'', 'd\'', 'n\'', 's\'', 'j\'', 'c\'', 't\'', 'm\'',
+            'et', 'ou', 'or', 'mais', 'où', 'dont', 'que', 'qui',
             'en', 'pour', 'avec', 'sur', 'dans', 'par', 'chez', 'sans',
-            # Auxiliary verbs
-            'être', 'avoir', 'ai', 'as', 'a', 'avons', 'avez', 'ont',
-            'suis', 'es', 'est', 'sommes', 'êtes', 'sont', 'été',
-            # Common verbs
-            'faire', 'dire', 'aller', 'voir', 'savoir', 'pouvoir', 'vouloir',
-            # Demonstratives
-            'ce', 'cet', 'cette', 'ces', 'cela', 'ça',
-            # Possessives
-            'son', 'sa', 'ses', 'mon', 'ma', 'mes', 'notre', 'nos',
-            'votre', 'vos', 'leur', 'leurs',
-            # Others
+            'être', 'avoir', 'ce', 'cette', 'ces', 'cela', 'ça',
             'très', 'plus', 'moins', 'bien', 'mal', 'non', 'oui', 'si',
-            'tout', 'tous', 'toute', 'toutes', 'aucun', 'aucune',
-            'autre', 'autres', 'même', 'mémes', 'tel', 'tels', 'telle', 'telles',
-            'chaque', 'certains', 'certaines', 'quelque', 'quelques'
+            'tout', 'tous', 'toute', 'toutes'
         ])
+    
+    # Add English stopwords
+    try:
+        combined_stopwords.update(stopwords('en'))
+    except Exception:
+        combined_stopwords.update([
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to',
+            'for', 'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were',
+            'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+            'will', 'would', 'could', 'should', 'may', 'might', 'can',
+            'this', 'that', 'these', 'those', 'it', 'its', 'i', 'you', 'he',
+            'she', 'we', 'they', 'my', 'your', 'his', 'her', 'our', 'their',
+            'very', 'more', 'most', 'some', 'any', 'no', 'not', 'only', 'just'
+        ])
+    
+    # Add Arabic stopwords
+    try:
+        combined_stopwords.update(stopwords('ar'))
+    except Exception:
+        combined_stopwords.update([
+            'من', 'إلى', 'على', 'في', 'عن', 'مع', 'هذا', 'هذه', 'ذلك', 'تلك',
+            'التي', 'الذي', 'الذين', 'هو', 'هي', 'هم', 'أنا', 'نحن', 'أنت', 'أنتم',
+            'كان', 'كانت', 'يكون', 'تكون', 'أن', 'إن', 'لا', 'ما', 'لم', 'لن',
+            'و', 'أو', 'ثم', 'بل', 'لكن', 'حتى', 'إذا', 'كل', 'بعض', 'غير',
+            'قد', 'عند', 'بين', 'فوق', 'تحت', 'أمام', 'وراء', 'قبل', 'بعد'
+        ])
+    
+    return combined_stopwords
+
+
+def get_french_stopwords() -> set[str]:
+    """Get French stopwords for filtering (kept for backward compatibility)."""
+    return get_multilingual_stopwords()
 
 
 def create_wordcloud(
@@ -53,7 +89,7 @@ def create_wordcloud(
     colormap: str = 'tab20'
 ) -> tuple[Optional[str], dict]:
     """
-    Create a wordcloud from text.
+    Create a wordcloud from text with multi-language support (French, English, Arabic).
 
     Returns:
         Tuple of (base64_encoded_image, word_frequencies_dict)
@@ -62,22 +98,34 @@ def create_wordcloud(
         return None, {}
 
     try:
-        # Get French stopwords
-        french_stopwords = get_french_stopwords()
+        # Get multi-language stopwords
+        stopwords_set = get_multilingual_stopwords()
+        
+        # Process Arabic text for RTL display
+        processed_text = text
+        if detect_has_arabic(text):
+            processed_text = wrap_arabic_words(text)
 
-        # Create wordcloud
+        # Construct regex dynamically to avoid source encoding issues
+        # Arabic range: 0600-06FF, 0750-077F, 08A0-08FF
+        arabic_range = f"{chr(0x0600)}-{chr(0x06FF)}{chr(0x0750)}-{chr(0x077F)}{chr(0x08A0)}-{chr(0x08FF)}"
+        regex_pattern = f"[\\w{arabic_range}']+"
+
+        # Create wordcloud with multi-language support
         wordcloud = WordCloud(
             width=width,
             height=height,
-            background_color='white',  # Light theme
-            stopwords=french_stopwords,
-            colormap=colormap,
+            background_color='white',
             max_words=max_words,
+            stopwords=stopwords_set,
+            colormap=colormap,
             prefer_horizontal=prefer_horizontal,
             relative_scaling=0.5,
             min_font_size=10,
-            random_state=42
-        ).generate(text)
+            random_state=42,
+            font_path=None,  # Use default font, relying on system fonts
+            regexp=regex_pattern
+        ).generate(processed_text)
 
         # Get word frequencies
         word_frequencies = wordcloud.words_

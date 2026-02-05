@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     libpng16-16 \
     fonts-noto-core \
     fonts-dejavu-core \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -fv
 

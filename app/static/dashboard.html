@@ -48,6 +48,19 @@
             </button>
         </div>
 
+        <!-- Question Section -->
+        <div class="analysis-section">
+            <h2>Question pour les étudiants</h2>
+            <div class="form-group">
+                <input type="text" id="teacher-question-input" placeholder="Ex: Comment s'est passé votre cours ?"
+                    maxlength="200"
+                    style="width: 100%; padding: 12px; border: 2px solid var(--color-border-dark); border-radius: 8px;">
+            </div>
+            <button id="save-question-btn" class="btn btn-primary">
+                💾 Enregistrer la Question
+            </button>
+        </div>
+
         <!-- Feedbacks Table -->
         <div class="feedbacks-section">
             <h2>Feedbacks Reçus</h2>
@@ -121,13 +134,16 @@
         document.addEventListener('DOMContentLoaded', function () {
             loadFeedbacks();
             loadStats();
+            loadQuestion();
 
             // Event listeners
             document.getElementById('refresh-btn').addEventListener('click', () => {
                 loadFeedbacks();
                 loadStats();
+                loadQuestion();
             });
 
+            document.getElementById('save-question-btn').addEventListener('click', saveQuestion);
             document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
             document.getElementById('export-json-btn').addEventListener('click', exportJSON);
             document.getElementById('import-json-btn').addEventListener('click', () => {
@@ -195,6 +211,43 @@
                 document.getElementById('selected-feedbacks').textContent = stats.selected;
             } catch (error) {
                 console.error('Error loading stats:', error);
+            }
+        }
+
+        async function loadQuestion() {
+            try {
+                const response = await fetch('/api/question');
+                const data = await response.json();
+                document.getElementById('teacher-question-input').value = data.question;
+            } catch (error) {
+                console.error('Error loading question:', error);
+            }
+        }
+
+        async function saveQuestion() {
+            const question = document.getElementById('teacher-question-input').value.trim();
+            if (!question) {
+                alert('La question ne peut pas être vide');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (response.ok) {
+                    alert('Question enregistrée avec succès');
+                } else {
+                    alert('Erreur lors de l\'enregistrement');
+                }
+            } catch (error) {
+                console.error('Error saving question:', error);
+                alert('Erreur de connexion');
             }
         }
 

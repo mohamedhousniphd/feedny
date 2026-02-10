@@ -171,6 +171,22 @@ textarea {
     margin: 0 auto;
 }
 
+.question-container {
+    background-color: var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: center;
+    border: 2px solid var(--color-border-dark);
+}
+
+.question-container h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--color-text);
+}
+
 /* Messages */
 .success-message,
 .info-message,

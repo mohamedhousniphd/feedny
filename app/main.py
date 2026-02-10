@@ -26,7 +26,9 @@ from app.database import (
     increment_device_feedback,
     reset_database,
     get_feedback_stats,
-    import_feedbacks
+    import_feedbacks,
+    get_setting,
+    set_setting
 )
 from app.models import (
     FeedbackRequest,
@@ -99,8 +101,10 @@ async def student_page(request: Request):
 
     # Inject data (handle optional spaces in tags)
     import re
+    question = get_setting("current_question", "Comment s'est passé votre cours ?")
     html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
     html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
+    html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
 
     response = Response(content=html, media_type="text/html")
 
@@ -166,6 +170,28 @@ async def submit_feedback(
     )
 
     return FeedbackResponse(**feedback)
+
+
+@app.get("/api/question")
+async def get_question():
+    """Get the current teacher question."""
+    question = get_setting("current_question", "Comment s'est passé votre cours ?")
+    return {"question": question}
+
+
+@app.post("/api/question")
+async def update_question(request: Request):
+    """Update the teacher question."""
+    if not verify_teacher_token(request):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    data = await request.json()
+    question = data.get("question", "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="La question ne peut pas être vide")
+    
+    set_setting("current_question", question)
+    return {"status": "success", "question": question}
 
 
 @app.get("/api/status", response_model=StatusResponse)

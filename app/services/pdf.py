@@ -117,7 +117,7 @@ def create_analysis_pdf(
     
     story.append(Spacer(1, 10))
     
-    # Decode wordcloud image
+    # Process wordcloud image
     wordcloud_img = None
     if wordcloud_image_base64:
         try:
@@ -128,70 +128,50 @@ def create_analysis_pdf(
             pil_img = PILImage.open(img_buffer)
             img_width, img_height = pil_img.size
             
-            # Calculate scaling to fit in half page width
-            max_img_width = (page_width - 3*cm) / 2 - 0.5*cm
-            max_img_height = page_height - 7*cm
+            # Calculate scaling to fit nicely centered
+            # Let's make it a sensible size (not taking whole page)
+            max_img_width = page_width - 4*cm
+            max_img_height = (page_height - 10*cm) / 2 # Take about half height at most
             
-            # Maintain aspect ratio
             scale_w = max_img_width / img_width
             scale_h = max_img_height / img_height
-            scale = min(scale_w, scale_h)
+            scale = min(scale_w, scale_h, 1.0) # Don't upscale
             
             final_width = img_width * scale
             final_height = img_height * scale
             
             img_buffer.seek(0)
             wordcloud_img = Image(img_buffer, width=final_width, height=final_height)
+            wordcloud_img.hAlign = 'CENTER'
         except Exception as e:
             print(f"Error processing wordcloud image: {e}")
+
+    # Add Wordcloud section
+    story.append(Paragraph("☁️ Nuage de Mots", section_heading))
+    if wordcloud_img:
+        story.append(wordcloud_img)
+    else:
+        story.append(Paragraph("(Image non disponible)", analysis_style))
+    
+    story.append(Spacer(1, 20))
+    
+    # Analysis Section
+    story.append(Paragraph("📊 Analyse IA", section_heading))
     
     # Format analysis text - split by sections
-    analysis_paragraphs = []
     for line in analysis_text.split('\n'):
         line = line.strip()
         if not line:
             continue
-        # Check if it's a heading (starts with number or contains key words)
+        # Check if it's a heading
         if any(line.startswith(f"{i}.") for i in range(1, 10)) or \
            any(keyword in line.lower() for keyword in ['résumé', 'points positifs', 'points à améliorer', 'recommandations']):
-            analysis_paragraphs.append(Paragraph(line, section_heading))
+            story.append(Paragraph(line, section_heading))
         else:
             # Clean up markdown formatting
             line = line.replace('**', '').replace('*', '')
-            analysis_paragraphs.append(Paragraph(line, analysis_style))
-    
-    # Create two-column table layout
-    # Left: Wordcloud, Right: Analysis
-    left_column = []
-    left_column.append(Paragraph("☁️ Nuage de Mots", section_heading))
-    if wordcloud_img:
-        left_column.append(wordcloud_img)
-    else:
-        left_column.append(Paragraph("(Image non disponible)", analysis_style))
-    
-    right_column = []
-    right_column.append(Paragraph("📊 Analyse IA", section_heading))
-    right_column.extend(analysis_paragraphs)
-    
-    # Create table with two columns
-    col_width = (page_width - 3*cm) / 2
-    
-    table_data = [[left_column, right_column]]
-    
-    table = Table(
-        table_data,
-        colWidths=[col_width, col_width],
-        style=TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 10),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-            ('LINEAFTER', (0, 0), (0, -1), 1, colors.lightgrey),
-        ])
-    )
-    
-    story.append(table)
+            story.append(Paragraph(line, analysis_style))
+
     
     # Build PDF
     doc.build(story)

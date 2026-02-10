@@ -42,6 +42,12 @@ def init_db():
                 last_feedback TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
         conn.commit()
         
         # Migration: Add emotion column if it doesn't exist
@@ -196,3 +202,21 @@ def import_feedbacks(feedbacks_data: list[dict]) -> int:
             imported_count += 1
         conn.commit()
     return imported_count
+
+
+def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Get a setting value by key."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cursor.fetchone()
+        return row["value"] if row else default
+
+
+def set_setting(key: str, value: str):
+    """Set a setting value by key."""
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+            (key, value, value)
+        )
+        conn.commit()

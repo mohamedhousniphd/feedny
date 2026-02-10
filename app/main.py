@@ -97,9 +97,10 @@ async def student_page(request: Request):
     with open("app/static/index.html", "r", encoding="utf-8") as f:
         html = f.read()
 
-    # Inject data
-    html = html.replace('{{device_id}}', device_id)
-    html = html.replace('{{can_submit}}', str(can_submit).lower())
+    # Inject data (handle optional spaces in tags)
+    import re
+    html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
+    html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
 
     response = Response(content=html, media_type="text/html")
 

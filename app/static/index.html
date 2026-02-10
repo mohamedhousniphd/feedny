@@ -70,6 +70,7 @@
         // Check if user can submit
         const canSubmit = {{ can_submit }};
         const deviceId = '{{device_id}}';
+        console.log('Feedny script initialized', { canSubmit, deviceId });
 
         document.addEventListener('DOMContentLoaded', function () {
             const form = document.getElementById('feedback-form');

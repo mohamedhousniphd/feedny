@@ -173,6 +173,8 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 **Developed and maintained by Mohamed HOUSNI Ph.D.**
 
+Développé avec ❤️ pour l'enseignement
+
 [Contact](mailto:admin@feedny.com) | [GitHub](https://github.com/mohamedhousniphd/feedny)
 
 </div>

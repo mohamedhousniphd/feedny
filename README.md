@@ -1,191 +1,182 @@
-# Feedny - Enterprise Student Feedback & AI Synthesis Platform
+# Rapport de Projet de Fin d'Études : Feedny
+## Système Intelligent de Collecte et d'Analyse de Feedback Pédagogique
 
-<!-- Railway build trigger: updated 2026-02-10 -->
+<!-- Mise à jour du déclencheur de build Railway : 2026-02-10 -->
 
 <div align="center">
 
-![Feedny Header](https://img.shields.io/badge/Feedny-Enterprise_AI_Analysis-blue?style=for-the-badge&logo=fastapi)
+![Badge Feedny](https://img.shields.io/badge/Projet-Feedny_Pédagogie-blue?style=for-the-badge)
 <br>
-![Version](https://img.shields.io/badge/Version-2.1.0_LTS-green?style=flat-square)
-![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square&logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104.0-009688?style=flat-square&logo=fastapi)
-![SQLite](https://img.shields.io/badge/DB-SQLite_WAL-003B57?style=flat-square&logo=sqlite)
-![DeepSeek](https://img.shields.io/badge/AI-DeepSeek_v3-black?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-gray?style=flat-square)
+**Auteur : Mohamed HOUSNI Ph.D.**
 
-**"Closing the pedagogical feedback loop with secure, anonymous, and intelligent analysis."**
+---
 
-[Project Overview](#-project-overview) • [Feature Set](#-feature-set) • [Architecture](#-technical-architecture) • [Deployment](#-deployment-guide) • [Security](#-security--privacy) • [API Docs](#-api-documentation)
+### Résumé (Abstract)
+
+*Ce document présente le développement de Feedny, une plateforme web innovante conçue pour optimiser l'interaction entre les enseignants et les étudiants. En utilisant des technologies de pointe telles que l'intelligence artificielle (IA) et l'architecture multi-utilisateurs (multi-tenancy), ce projet propose une solution robuste au défi de la collecte de feedbacks anonymes et de leur synthèse pédagogique. Ce chapitre détaille la conception, l'implémentation et les perspectives de cette plateforme.*
 
 </div>
 
 ---
 
-## 📖 Project Overview
+## 📖 Table des Matières
 
-**Feedny** is an enterprise-grade, multi-tenant SaaS application designed to revolutionize how educational institutions collect and process student feedback. Traditional feedback methods are often slow, identifiable, or difficult to synthesize. Feedny addresses these challenges by providing a secure, anonymous, and AI-powered platform where students can voice their opinions freely, and teachers can instantly transform hundreds of comments into strategic pedagogical insights.
-
-### The Problem it Solves
-- **Student Reticence**: Fear of identification leads to filtered or dishonest feedback.
-- **Data Overload**: Assessing 50+ feedbacks manually takes hours of a teacher's limited time.
-- **Fragmented Data**: Lack of a centralized history of course performance over time.
-
-### The Feedny Solution
-- **Zero-Login Anonymity**: Students interact with a simple landing page—no accounts, no tracking.
-- **LLM-Powered Synthesis**: Using DeepSeek-V3 (or OpenAI), the system clusters feedback themes and suggests actionable improvements.
-- **Multi-Tenant Hub**: A single deployment supports thousands of teachers, each with their own isolated data, settings, and credit balance.
-
----
-
-## ✨ Feature Set
-
-### 👨‍🏫 For Teachers (Power & Control)
-- **Advanced Dashboard**: Real-time monitoring of feedback volume, time-series data, and sentiment trends.
-- **Selective AI Analysis**: Curate which feedbacks are sent to the AI to optimize costs and focus on relevant issues.
-- **Smart WordClouds**: Instant visual identification of the most frequent student sentiments and topics.
-- **Professional PDF Reporting**: Generate high-fidelity reports for administrative reviews or self-reflection.
-- **Credit Management**: A built-in credit system ensures sustainable AI usage, with referrals rewarding active users.
-- **Unique Teacher Codes**: Every teacher gets a unique alphanumeric code to distribute to their classes.
-
-### 📱 For Students (Simplicity & Privacy)
-- **Ultra-Mobile First**: Optimized for one-handed operation on smartphones (where 90% of students provide feedback).
-- **Emotion Tagging**: Express sentiments through high-quality emojis that feed into the teacher's sentiment analytics.
-- **Haptic Feedback & Micro-animations**: A premium, responsive UI that makes giving feedback a delight.
-- **Session Protection**: Intelligent device fingerprints prevent spam while maintaining 100% student anonymity.
-
-### 🛡️ For Administrators (Governance)
-- **Global Control Panel**: Manage teacher accounts, adjust credit balances, and monitor system health.
-- **Invitation-Only Growth**: Secure the platform by requiring referral codes for new signups.
+1. [Remerciements](#-remerciements)
+2. [Introduction Générale](#-introduction-générale)
+3. [Contexte et Problématique](#-contexte-et-problématique)
+4. [Analyse Fonctionnelle](#-analyse-fonctionnelle)
+5. [Architecture Technique et Implémentation](#-architecture-technique-et-implémentation)
+6. [Sécurité et Confidentialité](#-sécurité-et-confidentialité)
+7. [Guide de Déploiement et d'Installation](#-guide-de-déploiement-et-dinstallation)
+8. [Résultats et Analyse des Coûts](#-résultats-et-analyse-des-coûts)
+9. [Conclusion et Perspectives](#-conclusion-et-perspectives)
+10. [Références Bibliographiques](#-références-bibliographiques)
+11. [Annexes](#-annexes)
 
 ---
 
-## 🏗️ Technical Architecture
+## 🙏 Remerciements
 
-Feedny is built on a high-performance asynchronous stack designed for low latency and high reliability.
-
-### 💻 Stack Breakdown
-- **Backend**: Python 3.11+ with **FastAPI**. Fully asynchronous I/O.
-- **Database**: **SQLite** with **WAL (Write-Ahead Logging)** mode enabled, providing high concurrency without the overhead of a full RDBMS.
-- **Frontend**: Vanila HTML5/CSS3/JS. Zero-dependency frontend ensures rapid load times and maximum compatibility.
-- **AI Integration**: **DeepSeek API** (compatible with OpenAI SDK) for complex qualitative synthesis.
-- **Reporting**: **ReportLab** for PDF generation and **WordCloud** for NLP-based imagery.
-
-### 🗄️ Database Schema
-The SQLite database (`feedny.db`) follows a strict relational structure to ensure multi-tenant integrity:
-
-- **`teachers`**: Stores profile data, hashed passwords (bcrypt), unique teacher codes, and credit balances.
-- **`feedbacks`**: Stores feedback content, emotion tags, and timestamps. Linked via `teacher_id`.
-- **`device_limits`**: Tracks anonymized device identifiers to enforce rate limiting without storing PII.
-- **`settings`**: Global and per-teacher configuration store.
+Je tiens à exprimer ma gratitude envers tous ceux qui ont contribué, de près ou de loin, à la réalisation de ce projet de recherche et développement. Un merci tout particulier aux institutions académiques et aux collègues enseignants dont les retours sur le terrain ont permis d'affiner les fonctionnalités de Feedny pour mieux répondre aux besoins réels des salles de classe modernes.
 
 ---
 
-## 🚀 Deployment Guide
+## 1. Introduction Générale
 
-### 🐳 Deployment with Docker (Preferred)
-The easiest way to get Feedny up and running is via Docker.
-
-1.  **Clone and Configure**:
-    ```bash
-    git clone https://github.com/mohamedhousniphd/feedny.git
-    cd feedny
-    cp .env.example .env
-    ```
-2.  **Environment Setup**: EDIT the `.env` file with your credentials (see [Configuration](#-configuration-options)).
-3.  **Launch**:
-    ```bash
-    docker-compose up -d --build
-    ```
-    The app is now live at `http://localhost:8000`.
-
-### ☁️ Cloud Deployment (Railway.app)
-1.  **New Project**: Create a new project from your GitHub fork.
-2.  **Volumes**: **CRITICAL** - Add a volume named `data` and mount it to `/app/data`. Feedny stores its database there.
-3.  **Variable Injection**: Add `DEEPSEEK_API_KEY`, `TEACHER_PASSWORD`, etc., in the Railway variables tab.
-4.  **Networking**: Railway will automatically detect the `PORT` and provide a public URL.
+Dans le paysage éducatif contemporain, le feedback étudiant est reconnu comme un levier majeur de l'amélioration de la qualité de l'enseignement. Cependant, la collecte de ces données précieuses se heurte souvent à des obstacles psychologiques (crainte d'identification) et logistiques (temps de traitement). **Feedny** émerge comme une réponse technologique à ces défis, offrant un environnement sécurisé et intelligent pour transformer la "voix de l'étudiant" en stratégie d'enseignement concrète.
 
 ---
 
-## 🔒 Security & Privacy
+## 2. Contexte et Problématique
 
-Feedny is built from the ground up to protect both the user (Teacher) and the subject (Student).
+### 2.1 Le Défi du Feedback Anonyme
+Le manque de sincérité est le principal biais des évaluations classiques. Pour obtenir une critique constructive, l'anonymat absolu est une condition *sine qua non*. Feedny garantit cet anonymat à travers une architecture qui ne conserve aucune donnée nominative étudiante.
 
-- **Multi-Tenant Data Silos**: Every database query is scoped by a `teacher_id`. It is computationally impossible for a teacher to view another teacher's data without administrative access.
-- **JWT Authentication**: Secure sessions use JSON Web Tokens stored in `HttpOnly`, `Secure`, and `SameSite: Lax` cookies, mitigating XSS and CSRF risks.
-- **PII Anonymization**: No IP addresses, names, or student emails are ever stored in the database.
-- **Hash-based Fingerprinting**: Device IDs are used to prevent multiple submissions but are stored in a way that protects individual identity.
-
----
-
-## 🛠️ Configuration Options
-
-| Variable | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `SECRET_KEY` | string | `FEEDNY_SECRET` | Used for JWT encryption. Change this immediately! |
-| `TEACHER_PASSWORD` | string | `Teacher123` | Legacy master password (overridden by individual accounts). |
-| `ADMIN_INVITE_CODE` | string | `FEEDNY2024` | Master code required for the very first teacher signups. |
-| `DEEPSEEK_API_KEY` | string | `None` | Your API key from platform.deepseek.com. |
-| `DEEPSEEK_BASE_URL` | url | `https://api.deepseek.com` | Base URL for the AI provider (OpenAI compatible). |
-| `CREDITS_PER_SIGNUP` | integer | `3` | Number of free AI analyses given to new teachers. |
-| `DATABASE_URL` | string | `sqlite:///./data/feedny.db` | Connection string for the persistence layer. |
+### 2.2 La Charge Cognitive de l'Enseignant
+Traiter manuellement des centaines de commentaires après chaque séance est une tâche chronophage. L'intégration d'un modèle de langage (LLM) permet de synthétiser ces données en quelques secondes, dégageant ainsi du temps pour l'action pédagogique.
 
 ---
 
-## 📊 API Documentation
+## 3. Analyse Fonctionnelle
 
-Feedny exposes a clean RESTful API for both internal and external integrations.
+### 3.1 Profil Étudiant (Simplicité et Accessibilité)
+- **Accès par Code** : L'étudiant accède au formulaire via un code unique fourni par l'enseignant.
+- **Formulaire Minimaliste** : Zone de saisie limitée à 240 caractères pour encourager la concision.
+- **Gestion des Émotions** : Sélection d'emojis pour une analyse quantitative immédiate du ressenti.
 
-### Auth Endpoints
-- `POST /api/auth/signup`: Create a new teacher account (requires `invitation_code`).
-- `POST /api/auth/login`: Authenticate and receive session cookies.
-- `POST /api/teacher/logout`: Terminate session and clear security cookies.
+### 3.2 Profil Enseignant (Gestion et Analyse)
+- **Tableau de Bord Personnel** : Chaque enseignant dispose de son espace propre (multi-tenancy).
+- **Filtrage Intelligent** : Possibilité de sélectionner les feedbacks les plus pertinents pour l'analyse IA.
+- **Génération de Nuages de Mots** : Visualisation instantanée des mots-clés prédominants.
+- **Exportation des Résultats** : Téléchargement des analyses en format PDF ou CSV pour archivage.
 
-### Teacher Operations
-- `GET /api/feedbacks`: List all feedbacks for the logged-in teacher.
-- `POST /api/analyze`: Trigger AI synthesis (Costs 1 credit).
-- `GET /api/stats`: Retrieve historical statistics and sentiment trends.
-
-### Student Operations
-- `POST /api/feedback`: Submit a new anonymous entry.
-- `GET /api/status`: Check if the submission window is open for a specific teacher.
+### 3.3 Système d'Invitation et de Crédits
+Pour assurer la viabilité du service, un système de crédits gère les appels aux API d'intelligence artificielle. Un système d'invitation permet une croissance contrôlée de la communauté enseignante.
 
 ---
 
-## 🤝 Contribution & Roadmap
+## 4. Architecture Technique et Implémentation
 
-Feedny is an evolving project. We welcome contributions that align with our mission of pedagogical excellence.
+### 4.1 Stack Technologique
+Le choix des technologies a été guidé par des impératifs de performance et de légèreté :
+- **Backend** : FastAPI (Python), choisi pour son asynchronisme natif.
+- **Base de Données** : SQLite avec mode WAL pour une gestion robuste des écritures concurrentes.
+- **IA** : DeepSeek-V3, utilisé pour sa grande précision dans les résumés pédagogiques.
+- **Frontend** : HTML5/JS/CSS pur (Vanille), garantissant une compatibilité maximale sans lourdeur de frameworks.
 
-### 🌟 Planned Roadmap
-- [ ] **Automated Payments**: Stripe integration for seamless credit refills.
-- [ ] **Advanced NLP**: Multi-language sentiment analysis for non-Latin scripts.
-- [ ] **Integration Hub**: Plugins for Canvas, Moodle, and Blackboard.
-- [ ] **Real-time Push**: WebSocket notifications for live classroom feedback.
-
-### 📝 How to Contribute
-1. Fork the repository.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a Pull Request.
+### 4.2 Structure du Projet
+```text
+feedny/
+├── app/
+│   ├── main.py         # Logique API et routage
+│   ├── auth.py         # Gestion de la sécurité (JWT)
+│   ├── database.py     # Manipulation des données SQLite
+│   ├── models.py       # Schémas de données (Pydantic)
+│   └── static/         # Interfaces utilisateurs (HTML/JS/CSS)
+├── data/               # Stockage persistant de la base de données
+├── Dockerfile          # Conteneurisation du système
+└── docker-compose.yml  # Orchestration multi-conteneurs
+```
 
 ---
 
-## 📄 License
+## 5. Sécurité et Confidentialité
 
-This project is licensed under the **MIT License**. You are free to use, modify, and distribute it for personal or commercial purposes.
+Le respect de la vie privée est au cœur de Feedny :
+- **Isolation des Données** : Les données sont compartimentées par `teacher_id`. Un enseignant ne peut en aucun cas accéder aux données d'un collègue.
+- **Sécurité JWT** : L'authentification repose sur des JSON Web Tokens stockés dans des cookies `HttpOnly`, protégeant contre les attaques XSS.
+- **Fingerprinting** : Utilisation d'identifiants d'appareils hachés pour limiter les abus sans identifier l'individu.
+
+---
+
+## 6. Guide de Déploiement et d'Installation
+
+### 6.1 Installation via Docker (Recommandé)
+1. Télécharger le dépôt.
+2. Configurer le fichier `.env` à partir de `.env.example`.
+3. Lancer la commande :
+   ```bash
+   docker-compose up --build
+   ```
+
+### 6.2 Déploiement Cloud (Railway)
+- Créer un projet Railway lié au dépôt GitHub.
+- Ajouter un volume pour le répertoire `/app/data`.
+- Configurer les variables d'environnement (`SECRET_KEY`, `DEEPSEEK_API_KEY`).
+
+---
+
+## 7. Résultats et Analyse des Coûts
+
+Feedny a été optimisé pour un coût d'exploitation minimal :
+- **Hébergement** : ~2-5$ / mois (en fonction de l'usage).
+- **Analyse IA** : Coût négligeable grâce à l'efficacité du modèle DeepSeek (environ 0.01$ par analyse complète).
+
+---
+
+## 8. Conclusion et Perspectives
+
+### 8.1 Synthèse
+Feedny démontre qu'une application légère et ciblée peut transformer radicalement l'interaction pédagogique. Le passage réussi à une architecture multi-utilisateurs permet désormais une mise à l'échelle pour des institutions complètes.
+
+### 8.2 Perspectives Futures
+- **Intégration LTI** : Pour une connexion directe avec Moodle ou Canvas.
+- **Analyse de Sentiment Avancée** : Détection automatique du ton des messages.
+- **Multi-langage** : Support complet de l'arabe et de l'anglais pour une portée internationale.
+
+---
+
+## 9. Références Bibliographiques
+
+1. **Hattie, J., & Timperley, H. (2007)**. *The Power of Feedback*. Review of Educational Research.
+2. **FastAPI Documentation**. https://fastapi.tiangolo.com
+3. **DeepSeek AI Research**. https://platform.deepseek.com
+4. **SQLite Optimization**. https://www.sqlite.org/wal.html
+
+---
+
+## 10. Annexes
+
+### Annexe A : Schéma de la Base de Données
+- Table `teachers` : `id, name, email, password_hash, unique_code, credits`.
+- Table `feedbacks` : `id, teacher_id, content, emotion, timestamp`.
+
+### Annexe B : Guide d'Utilisation Enseignant
+1. Se connecter au dashboard.
+2. Partager le code unique avec les étudiants.
+3. Attendre la fin de la séance.
+4. Cocher les feedbacks et cliquer sur "Analyser".
 
 ---
 
 <div align="center">
 
-**Developed and maintained by Mohamed HOUSNI Ph.D.**
+**Développé avec ❤️ pour l'enseignement**
 
-Développé avec ❤️ pour l'enseignement
+**Mohamed HOUSNI Ph.D.**
 
-[Email Contact](mailto:admin@feedny.com) | [Official Website](https://github.com/mohamedhousniphd/feedny)
+[Contact](mailto:admin@feedny.com) | [GitHub](https://github.com/mohamedhousniphd/feedny)
 
-<br>
-
-*"L'éducation est l'arme la plus puissante que vous puissiez utiliser pour changer le monde."* - Nelson Mandela
+*"L'éducation est l'arme la plus puissante que vous puissiez utiliser pour changer le monde."*
 
 </div>

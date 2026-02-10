@@ -66,7 +66,8 @@ label {
     display: block;
     font-weight: 600;
     margin-bottom: 8px;
-    font-size: 16px; /* Minimum readable size */
+    font-size: 16px;
+    /* Minimum readable size */
 }
 
 input[type="text"],
@@ -74,7 +75,8 @@ input[type="password"],
 textarea {
     width: 100%;
     padding: 16px;
-    font-size: 16px; /* Prevent iOS zoom */
+    font-size: 16px;
+    /* Prevent iOS zoom */
     border: 2px solid var(--color-border-dark);
     border-radius: 12px;
     font-family: inherit;
@@ -108,10 +110,12 @@ textarea {
     font-size: 16px;
     font-weight: 600;
     border: 2px solid var(--color-primary);
-    border-radius: 20px; /* Rounded 20px as specified */
+    border-radius: 20px;
+    /* Rounded 20px as specified */
     cursor: pointer;
     transition: all 0.2s;
-    min-height: 44px; /* Touch target minimum */
+    min-height: 44px;
+    /* Touch target minimum */
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -182,9 +186,17 @@ textarea {
     margin-bottom: 20px;
 }
 
-.success-icon { color: var(--color-success); }
-.info-icon { color: var(--color-info); }
-.error-icon { color: var(--color-error); }
+.success-icon {
+    color: var(--color-success);
+}
+
+.info-icon {
+    color: var(--color-info);
+}
+
+.error-icon {
+    color: var(--color-error);
+}
 
 .success-message h2,
 .info-message h2 {
@@ -418,7 +430,9 @@ tbody tr:hover {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .loading-overlay p {
@@ -559,7 +573,8 @@ footer {
     border-color: var(--color-primary);
     background-color: var(--color-border);
     transform: scale(1.2);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
 }
 
 /* Emotion display in table */
@@ -584,4 +599,3 @@ footer {
 .btn-pdf:hover:not(:disabled) {
     background-color: #991b1b;
 }
-

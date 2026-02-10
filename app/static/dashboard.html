@@ -10,10 +10,21 @@
 
 <body>
     <div class="container dashboard-container">
+        <!-- Header -->
         <div class="header">
-            <h1>👨‍🏫 Feedny</h1>
-            <p class="subtitle">Tableau de Bord Enseignant</p>
-            <button id="logout-btn" class="btn btn-secondary btn-small">Déconnexion</button>
+            <h1>📊 Tableau de bord - {{name}}</h1>
+            <div class="header-controls">
+                <div class="code-display" title="Partagez ce code avec vos étudiants">
+                    Code: <strong>{{unique_code}}</strong>
+                </div>
+                <div class="credits_display"
+                    style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; margin-right: 10px;">
+                    💎 Crédits: <strong id="credits-count">{{credits}}</strong>
+                    <a href="/static/payment.html" class="btn btn-sm btn-primary"
+                        style="margin-left: 5px; font-size: 0.8em; padding: 2px 8px;">Recharger</a>
+                </div>
+                <button id="logout-btn" class="btn btn-secondary">Déconnexion</button>
+            </div>
         </div>
 
         <!-- Stats -->
@@ -127,7 +138,7 @@
     </div>
 
     <footer>
-        <p>&copy; 2024 Feedny</p>
+        <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
     </footer>
 
     <script>
@@ -141,6 +152,16 @@
                 loadFeedbacks();
                 loadStats();
                 loadQuestion();
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                try {
+                    await fetch('/api/teacher/logout', { method: 'POST' });
+                    window.location.href = '/login';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    window.location.href = '/login';
+                }
             });
 
             document.getElementById('save-question-btn').addEventListener('click', saveQuestion);

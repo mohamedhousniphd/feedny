@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription Enseignant - Feedny</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+    <div class="container auth-container">
+        <div class="header">
+            <h1>👨‍🏫 Feedny</h1>
+            <p class="subtitle">Créer un compte enseignant</p>
+        </div>
+
+        <div class="auth-form-card">
+            <form id="signup-form">
+                <div class="form-group">
+                    <label for="name">Nom Complet</label>
+                    <input type="text" id="name" required placeholder="Ex: Prof. Martin">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required placeholder="votre@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" id="password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="invitation_code">Code d'invitation</label>
+                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin"
+                        style="text-transform: uppercase;">
+                    <small style="color: #666; font-size: 0.8em;">Un code d'invitation est requis pour créer un
+                        compte.</small>
+                </div>
+                <button type="submit" class="btn btn-primary" id="signup-btn">S'inscrire</button>
+            </form>
+            <p class="auth-link">Déjà un compte ? <a href="/login">Se connecter</a></p>
+        </div>
+
+        <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
+            <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('signup-btn');
+            btn.disabled = true;
+            btn.textContent = 'Inscription...';
+
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, invitation_code: document.getElementById('invitation_code').value.trim() })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Compte créé avec succès ! Votre code enseignant est : ' + data.unique_code);
+                    window.location.href = '/teacher/dashboard';
+                } else {
+                    alert(data.detail || 'Erreur lors de l\'inscription');
+                    btn.disabled = false;
+                    btn.textContent = 'S\'inscrire';
+                }
+            } catch (error) {
+                alert('Erreur de connexion');
+                btn.disabled = false;
+                btn.textContent = 'S\'inscrire';
+            }
+        });
+    </script>
+</body>
+
+</html>

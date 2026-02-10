@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Feedny - Rejoindre un cours</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .landing-container {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+            padding-top: 40px;
+        }
+
+        .code-input {
+            font-size: 24px;
+            letter-spacing: 4px;
+            text-align: center;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container landing-container">
+        <div class="header">
+            <h1>📝 Feedny</h1>
+            <p class="subtitle">Rejoindre une session de feedback</p>
+        </div>
+
+        <div class="auth-form-card">
+            <form id="code-form">
+                <div class="form-group">
+                    <label for="code">Code Enseignant</label>
+                    <input type="text" id="code" class="code-input" required maxlength="10" placeholder="CODE">
+                </div>
+                <button type="submit" class="btn btn-primary">Accéder au formulaire</button>
+            </form>
+        </div>
+
+        <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
+            <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('code-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const code = document.getElementById('code').value.trim().toUpperCase();
+            if (code) {
+                window.location.href = `/?code=${code}`;
+            }
+        });
+    </script>
+</body>
+
+</html>

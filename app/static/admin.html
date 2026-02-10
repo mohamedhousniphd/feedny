@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration - Feedny</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .admin-table th,
+        .admin-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .admin-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .credit-btn {
+            background-color: var(--color-success);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ Administration</h1>
+            <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
+        </div>
+
+        <div class="analysis-section">
+            <h2>Gestion des Crédits</h2>
+            <div class="form-group">
+                <input type="text" id="search-email" placeholder="Rechercher par email..."
+                    style="padding: 8px; width: 300px;">
+                <button id="search-btn" class="btn btn-secondary">Rechercher</button>
+            </div>
+        </div>
+
+        <div class="feedbacks-section">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nom</th>
+                        <th>Email</th>
+                        <th>Code</th>
+                        <th>Crédits</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="teachers-list">
+                    <!-- Teachers will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Load teachers function would go here if we had an API endpoint for it
+        // For now, simpler implementation: Admin enters email to add credits
+
+        async function addCredits(email, amount) {
+            try {
+                const response = await fetch('/api/admin/credits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, amount })
+                });
+
+                if (response.ok) {
+                    alert('Crédits ajoutés avec succès');
+                    loadTeachers(); // Reload list
+                } else {
+                    alert('Erreur lors de l\'ajout des crédits');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Erreur de connexion');
+            }
+        }
+
+        // Mock loading for UI structure - Real implementation needs endpoint
+        // TODO: Implement /api/admin/teachers endpoint in main.py
+    </script>
+
+    <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
+        <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
+    </footer>
+</body>
+
+</html>

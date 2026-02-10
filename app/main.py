@@ -15,6 +15,13 @@ import asyncio
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.auth import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    decode_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
 from app.database import (
     init_db,
     insert_feedback,
@@ -28,7 +35,13 @@ from app.database import (
     get_feedback_stats,
     import_feedbacks,
     get_setting,
-    set_setting
+    set_setting,
+    create_teacher,
+    get_teacher_by_email,
+    get_teacher_by_code,
+    get_teacher_by_id,
+    deduct_credit,
+    add_credits
 )
 from app.models import (
     FeedbackRequest,
@@ -44,7 +57,8 @@ from app.models import (
 )
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks
-
+from datetime import timedelta
+from fastapi import Cookie, Query
 
 # Initialize FastAPI app
 app = FastAPI(title="Feedny", version="1.0.0")
@@ -62,7 +76,6 @@ app.add_middleware(
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
-TEACHER_PASSWORD = os.getenv("TEACHER_PASSWORD", "admin123")
 
 
 # Initialize database on startup
@@ -79,10 +92,21 @@ def get_device_id(request: Request) -> str:
     return device_id
 
 
-def verify_teacher_token(request: Request) -> bool:
-    """Verify teacher authentication token."""
-    token = request.cookies.get("teacher_token")
-    return token == SECRET_KEY
+async def get_current_teacher(request: Request) -> dict:
+    """Get current logged-in teacher."""
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    teacher = get_teacher_by_email(payload.get("sub"))
+    if not teacher:
+        raise HTTPException(status_code=401, detail="Teacher not found")
+        
+    return teacher
 
 
 # Mount static files
@@ -90,9 +114,28 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 # Routes
+
 @app.get("/", response_class=HTMLResponse)
-async def student_page(request: Request):
+async def student_page(request: Request, code: Optional[str] = Query(None)):
     """Student feedback page."""
+    # Check for code in query param or cookie (last used code)
+    if not code:
+        code = request.cookies.get("teacher_code")
+        
+    # If still no code, serve landing page
+    if not code:
+        with open("app/static/student_landing.html", "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+            
+    # Verify code
+    teacher = get_teacher_by_code(code.upper())
+    if not teacher:
+        # Invalid code, go back to landing with error (for now just landing)
+        response = Response(status_code=302)
+        response.headers["Location"] = "/"
+        response.delete_cookie("teacher_code")
+        return response
+
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
@@ -101,10 +144,15 @@ async def student_page(request: Request):
 
     # Inject data (handle optional spaces in tags)
     import re
-    question = get_setting("current_question", "Comment s'est passé votre cours ?")
+    # Fetch teacher's specific question (need to implement per-teacher settings later, using global/default for now or teacher name)
+    # Ideally, settings table should have teacher_id, but for now let's use global or just a placeholder
+    # TODO: Implement per-teacher question. For now, using global setting as fallback.
+    question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
+    
     html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
     html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
     html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
+    html = html.replace('Feedny', f"Feedny - {teacher['name']}") # Personalize header
 
     response = Response(content=html, media_type="text/html")
 
@@ -113,29 +161,122 @@ async def student_page(request: Request):
         response.set_cookie(
             key="device_id",
             value=device_id,
-            max_age=365*24*60*60,  # 1 year
+            max_age=365*24*60*60,
             httponly=True,
             samesite="lax"
         )
+    
+    # Set teacher code cookie for convenience
+    response.set_cookie(
+        key="teacher_code",
+        value=code.upper(),
+        max_age=30*24*60*60, # 30 days
+        httponly=True,
+        samesite="lax"
+    )
 
     return response
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    """Login page."""
+    with open("app/static/login.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.get("/signup", response_class=HTMLResponse)
+async def signup_page():
+    """Signup page."""
+    with open("app/static/signup.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
 @app.get("/teacher", response_class=HTMLResponse)
-async def teacher_page(request: Request):
+@app.get("/teacher/dashboard", response_class=HTMLResponse)
+async def teacher_dashboard(request: Request):
     """Teacher dashboard page."""
-    if not verify_teacher_token(request):
-        with open("app/static/login.html", "r", encoding="utf-8") as f:
-            return Response(content=f.read(), media_type="text/html")
-
-    feedbacks = get_all_feedbacks()
-    stats = get_feedback_stats()
+    try:
+        teacher = await get_current_teacher(request)
+    except HTTPException:
+        return Response(status_code=302, headers={"Location": "/login"})
 
     with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
         html = f.read()
+    
+    # Inject teacher info
+    html = html.replace('{{name}}', teacher['name'])
+    html = html.replace('{{unique_code}}', teacher['unique_code'])
+    html = html.replace('{{credits}}', str(teacher['credits']))
 
-    response = Response(content=html, media_type="text/html")
-    return response
+    return HTMLResponse(content=html)
+
+
+# Auth API
+
+class TeacherSignup(FeedbackRequest.__base__): # Inherit BaseModel
+    name: str
+    email: str
+    password: str
+    invitation_code: str
+
+@app.post("/api/auth/signup")
+async def signup(data: TeacherSignup):
+    """Register a new teacher."""
+    # Validate invitation code
+    # 1. Check against master admin code
+    ADMIN_INVITE_CODE = os.getenv("ADMIN_INVITE_CODE", "FEEDNY2024")
+    
+    # 2. Check against existing teacher codes
+    referrer = None
+    if data.invitation_code != ADMIN_INVITE_CODE:
+        referrer = get_teacher_by_code(data.invitation_code.upper())
+        if not referrer:
+             raise HTTPException(status_code=400, detail="Code d'invitation invalide")
+
+    # Generate unique code
+    import random, string
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+    
+    pwd_hash = get_password_hash(data.password)
+    teacher_id = create_teacher(data.name, data.email, pwd_hash, code)
+    
+    if not teacher_id:
+        raise HTTPException(status_code=400, detail="Email déjà enregistré")
+        
+    # Reward referrer (optional - maybe give credit?)
+    if referrer:
+        add_credits(referrer['id'], 1) # Bonus credit for inviting
+        
+    # Auto login? For now just return success
+    return {"status": "success", "unique_code": code}
+
+
+@app.post("/api/auth/login")
+async def login(username: str = Form(...), password: str = Form(...), response: Response = None):
+    """Login teacher."""
+    teacher = get_teacher_by_email(username)
+    if not teacher or not verify_password(password, teacher['password_hash']):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        
+    access_token = create_access_token(data={"sub": teacher['email']})
+    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        samesite="lax"
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/teacher/logout")
+async def logout(response: Response):
+    """Logout teacher."""
+    response.delete_cookie("access_token")
+    return {"status": "success"}
 
 
 # API Routes - Student
@@ -147,6 +288,39 @@ async def submit_feedback(
 ):
     """Submit a new feedback with optional emotion."""
     device_id = get_device_id(http_request)
+    
+    # Get teacher from cookie
+    code = http_request.cookies.get("teacher_code")
+    if not code:
+         raise HTTPException(status_code=400, detail="Teacher code missing")
+         
+    teacher = get_teacher_by_code(code)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+
+    # Check if device has already submitted
+    can_submit, count = check_device_limit(device_id)
+    if not can_submit:
+        raise HTTPException(status_code=403, detail="Vous avez déjà soumis un feedback")
+
+    # Insert feedback with emotion and teacher_id
+    feedback_id = insert_feedback(request.content, device_id, request.emotion, teacher['id'])
+    increment_device_feedback(device_id)
+
+    # Get the created feedback
+    feedback = get_feedback_by_id(feedback_id)
+
+    # Set device ID cookie
+    response.set_cookie(
+        key="device_id",
+        value=device_id,
+        max_age=365*24*60*60,
+        httponly=True,
+        samesite="lax"
+    )
+
+    return FeedbackResponse(**feedback)
+
 
     # Check if device has already submitted
     can_submit, count = check_device_limit(device_id)
@@ -180,16 +354,19 @@ async def get_question():
 
 
 @app.post("/api/question")
-async def update_question(request: Request):
+async def update_question(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Update the teacher question."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
     data = await request.json()
     question = data.get("question", "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="La question ne peut pas être vide")
     
+    # In a real multi-tenant app, this would be per-teacher
+    # For MVP, we use teacher_id in settings if possible or a global one
+    # TODO: Refactor set_setting to support teacher_id
     set_setting("current_question", question)
     return {"status": "success", "question": question}
 
@@ -213,36 +390,16 @@ async def get_status(request: Request):
 
 
 # API Routes - Teacher
-@app.post("/api/teacher/login", response_model=TeacherLoginResponse)
-async def teacher_login(login_data: TeacherLoginRequest, response: Response):
-    """Authenticate teacher."""
-    if login_data.password == TEACHER_PASSWORD:
-        response.set_cookie(
-            key="teacher_token",
-            value=SECRET_KEY,
-            max_age=24*60*60,  # 24 hours
-            httponly=True,
-            samesite="lax"
-        )
-        return TeacherLoginResponse(
-            success=True,
-            token=SECRET_KEY,
-            message="Connexion réussie"
-        )
-    else:
-        return TeacherLoginResponse(
-            success=False,
-            message="Mot de passe incorrect"
-        )
+# (Other routes like /api/teacher/login, /api/auth/signup are already implemented)
 
 
 @app.get("/api/feedbacks", response_model=FeedbackListResponse)
-async def get_feedbacks_list(request: Request):
+async def get_feedbacks_list(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Get all feedbacks (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
-    feedbacks = get_all_feedbacks()
+    feedbacks = get_all_feedbacks(teacher['id'])
     return FeedbackListResponse(
         feedbacks=[FeedbackResponse(**fb) for fb in feedbacks],
         total=len(feedbacks)
@@ -250,29 +407,41 @@ async def get_feedbacks_list(request: Request):
 
 
 @app.put("/api/feedbacks/{feedback_id}/toggle", response_model=dict)
-async def toggle_feedback(feedback_id: int, request: Request):
+async def toggle_feedback(
+    feedback_id: int, 
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Toggle feedback inclusion in analysis (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
-    success = toggle_feedback_inclusion(feedback_id)
-    if not success:
+    # Verify feedback belongs to teacher
+    feedback = get_feedback_by_id(feedback_id)
+    if not feedback or feedback['teacher_id'] != teacher['id']:
         raise HTTPException(status_code=404, detail="Feedback non trouvé")
 
+    success = toggle_feedback_inclusion(feedback_id)
     return {"success": True, "message": "Statut mis à jour"}
 
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze_feedbacks_endpoint(request_data: AnalyzeRequest, request: Request):
+async def analyze_feedbacks_endpoint(
+    request_data: AnalyzeRequest, 
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Analyze selected feedbacks and generate wordcloud (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
+    if teacher['credits'] <= 0:
+        raise HTTPException(status_code=403, detail="Crédits insuffisants. Veuillez recharger votre compte.")
 
     if not request_data.feedback_ids:
         raise HTTPException(status_code=400, detail="Veuillez sélectionner au moins un feedback")
 
     # Get selected feedbacks
     feedbacks = get_feedbacks_by_ids(request_data.feedback_ids)
+
+    # Verify ownership
+    for fb in feedbacks:
+        if fb['teacher_id'] != teacher['id']:
+             raise HTTPException(status_code=403, detail="Accès non autorisé à certains feedbacks")
 
     if not feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback trouvé")
@@ -302,6 +471,9 @@ async def analyze_feedbacks_endpoint(request_data: AnalyzeRequest, request: Requ
 
     if not summary:
         summary = "Erreur lors de la génération du résumé. Veuillez réessayer."
+    else:
+        # Deduct credit only if successful
+        deduct_credit(teacher['id'])
 
     return AnalyzeResponse(
         summary=summary,
@@ -313,31 +485,42 @@ async def analyze_feedbacks_endpoint(request_data: AnalyzeRequest, request: Requ
 
 
 @app.post("/api/reset")
-async def reset_database_endpoint(request: Request):
+async def reset_database_endpoint(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Reset the database (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
-    reset_database()
-    return {"success": True, "message": "Base de données réinitialisée"}
+    # For now, maybe restrict reset to admin or implement per-teacher reset (delete WHERE teacher_id=...)
+    # Implementing per-teacher delete for safety
+    # TODO: Refactor `reset_database` to accept teacher_id
+    if teacher['is_admin']:
+        reset_database()
+        return {"success": True, "message": "Base de données réinitialisée (Admin)"}
+    else:
+        # For regular teachers, we might want a different function to clear only their data
+        # For MVP, disabling reset for non-admins to prevent data loss
+        raise HTTPException(status_code=403, detail="Action réservée aux administrateurs")
 
 
 @app.get("/api/export/csv")
-async def export_csv(request: Request):
+async def export_csv(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Export feedbacks as CSV (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
     import pandas as pd
 
-    feedbacks = get_all_feedbacks()
+    feedbacks = get_all_feedbacks(teacher['id'])
 
     if not feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
 
     # Create DataFrame
     df = pd.DataFrame(feedbacks)
-    df = df[["id", "content", "device_id", "created_at", "included_in_analysis"]]
+    # Filter columns to export
+    columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
+    # Only keep columns that exist
+    df = df[[c for c in columns if c in df.columns]]
 
     # Convert to CSV with UTF-8 BOM for Excel compatibility
     csv_buffer = df.to_csv(index=False, encoding="utf-8-sig")
@@ -349,22 +532,6 @@ async def export_csv(request: Request):
             "Content-Disposition": f"attachment; filename=feedny_feedbacks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         }
     )
-
-
-@app.post("/api/teacher/logout")
-async def teacher_logout(response: Response):
-    """Logout teacher."""
-    response.delete_cookie("teacher_token")
-    return {"success": True, "message": "Déconnexion réussie"}
-
-
-@app.get("/api/stats")
-async def get_stats_endpoint(request: Request):
-    """Get feedback statistics (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
-    return get_feedback_stats()
 
 
 # Health check endpoints for Railway serverless
@@ -382,12 +549,12 @@ async def healthz():
 
 # JSON Export/Import for data persistence
 @app.get("/api/export/json")
-async def export_json(request: Request):
+async def export_json(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Export feedbacks as JSON (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
-    feedbacks = get_all_feedbacks()
+    feedbacks = get_all_feedbacks(teacher['id'])
 
     if not feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
@@ -396,6 +563,7 @@ async def export_json(request: Request):
 
     json_content = json.dumps({
         "exported_at": datetime.now().isoformat(),
+        "teacher_email": teacher['email'],
         "feedbacks": feedbacks
     }, ensure_ascii=False, indent=2, default=str)
 
@@ -409,40 +577,96 @@ async def export_json(request: Request):
 
 
 @app.post("/api/import")
-async def import_json(request: Request):
+async def import_json(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Import feedbacks from JSON (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    """Admin dashboard page."""
     try:
-        import json
-        body = await request.body()
-        data = json.loads(body.decode('utf-8'))
+        teacher = await get_current_teacher(request)
+        if not teacher.get('is_admin'):
+            raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs")
+    except HTTPException:
+        return Response(status_code=302, headers={"Location": "/login"})
+
+    with open("app/static/admin.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+class CreditUpdate(FeedbackRequest.__base__):
+    email: str
+    amount: int
+
+@app.post("/api/admin/credits")
+async def add_credits_endpoint(
+    data: CreditUpdate,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Add credits to a teacher (admin only)."""
+    if not teacher.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Non autorisé")
         
-        feedbacks_data = data.get('feedbacks', [])
+    target_teacher = get_teacher_by_email(data.email)
+    if not target_teacher:
+         raise HTTPException(status_code=404, detail="Enseignant non trouvé")
+         
+    add_credits(target_teacher['id'], data.amount)
+    return {"success": True, "message": f"{data.amount} crédits ajoutés à {data.email}"}
+
+
+@app.get("/api/admin/teachers")
+async def list_teachers(teacher: dict = Depends(get_current_teacher)):
+    """List all teachers (admin only)."""
+    if not teacher.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Non autorisé")
+    
+    from app.database import get_all_teachers
+    teachers = get_all_teachers()
+    # Mask password hashes
+    for t in teachers:
+        t.pop('password_hash', None)
+    return teachers
+
+
+@app.post("/api/import")
+async def import_json(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Import feedbacks from JSON (teacher only)."""
+    try:
+        data = await request.json()
+        
+        feedbacks_data = data.get("feedbacks", [])
         if not feedbacks_data:
-            raise HTTPException(status_code=400, detail="Aucun feedback dans le fichier")
-        
-        imported_count = import_feedbacks(feedbacks_data)
-        
-        return {
-            "success": True,
-            "message": f"{imported_count} feedbacks importés avec succès",
-            "count": imported_count
-        }
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Format JSON invalide")
+            # Maybe it's a list directly?
+            if isinstance(data, list):
+                feedbacks_data = data
+            else:
+                return {"success": False, "message": "Aucun feedback trouvé dans le fichier"}
+
+        # Add teacher_id to each feedback before importing
+        for fb in feedbacks_data:
+            fb['teacher_id'] = teacher['id']
+
+        count = import_feedbacks(feedbacks_data)
+        return {"success": True, "message": f"{count} feedbacks importés avec succès"}
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'import: {str(e)}")
+        print(f"Import error: {e}")
+        raise HTTPException(status_code=400, detail="Format JSON invalide")
 
 
 # PDF Export Endpoint
 @app.post("/api/export/pdf")
-async def export_pdf(request: Request):
+async def export_pdf(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
     """Generate PDF with wordcloud and analysis (teacher only)."""
-    if not verify_teacher_token(request):
-        raise HTTPException(status_code=401, detail="Non autorisé")
-
     try:
         import json
         from app.services.pdf import create_analysis_pdf

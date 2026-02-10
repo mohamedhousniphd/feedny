@@ -57,27 +57,51 @@ def init_db():
             conn.execute("ALTER TABLE feedbacks ADD COLUMN emotion INTEGER DEFAULT NULL")
             conn.commit()
 
+        # Migration: Add teacher_id column if it doesn't exist
+        try:
+            conn.execute("SELECT teacher_id FROM feedbacks LIMIT 1")
+        except sqlite3.OperationalError:
+            conn.execute("ALTER TABLE feedbacks ADD COLUMN teacher_id INTEGER DEFAULT 1")
+            conn.commit()
+        
+        # Create teachers table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS teachers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                unique_code TEXT UNIQUE NOT NULL,
+                credits INTEGER DEFAULT 3,
+                is_admin BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
 
-def insert_feedback(content: str, device_id: str, emotion: Optional[int] = None) -> int:
+
+def insert_feedback(content: str, device_id: str, emotion: Optional[int] = None, teacher_id: int = 1) -> int:
     """Insert a new feedback and return its ID."""
     with get_db() as conn:
         cursor = conn.execute(
-            "INSERT INTO feedbacks (content, device_id, emotion) VALUES (?, ?, ?)",
-            (content, device_id, emotion)
+            "INSERT INTO feedbacks (content, device_id, emotion, teacher_id) VALUES (?, ?, ?, ?)",
+            (content, device_id, emotion, teacher_id)
         )
         conn.commit()
         return cursor.lastrowid
 
 
-def get_all_feedbacks() -> list[dict]:
-    """Get all feedbacks ordered by creation date (newest first)."""
+def get_all_feedbacks(teacher_id: int = 1) -> list[dict]:
+    """Get all feedbacks for a specific teacher ordered by creation date."""
     with get_db() as conn:
         cursor = conn.execute(
             """
             SELECT id, content, device_id, created_at, included_in_analysis, emotion
             FROM feedbacks
+            WHERE teacher_id = ?
             ORDER BY created_at DESC
-            """
+            """,
+            (teacher_id,)
         )
         return [dict(row) for row in cursor.fetchall()]
 
@@ -86,7 +110,7 @@ def get_feedback_by_id(feedback_id: int) -> Optional[dict]:
     """Get a single feedback by ID."""
     with get_db() as conn:
         cursor = conn.execute(
-            "SELECT id, content, device_id, created_at, included_in_analysis, emotion FROM feedbacks WHERE id = ?",
+            "SELECT id, content, device_id, created_at, included_in_analysis, emotion, teacher_id FROM feedbacks WHERE id = ?",
             (feedback_id,)
         )
         row = cursor.fetchone()
@@ -155,15 +179,16 @@ def reset_database():
         conn.commit()
 
 
-def get_feedback_stats() -> dict:
-    """Get statistics about feedbacks."""
+def get_feedback_stats(teacher_id: int = 1) -> dict:
+    """Get statistics about feedbacks for a specific teacher."""
     with get_db() as conn:
         cursor = conn.execute("""
             SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN included_in_analysis = 1 THEN 1 ELSE 0 END) as selected
             FROM feedbacks
-        """)
+            WHERE teacher_id = ?
+        """, (teacher_id,))
         row = cursor.fetchone()
         return {
             "total": row["total"] or 0,
@@ -186,18 +211,19 @@ def import_feedbacks(feedbacks_data: list[dict]) -> int:
             created_at = fb.get('created_at')
             emotion = fb.get('emotion')
             included = 1 if fb.get('included_in_analysis') else 0
+            teacher_id = fb.get('teacher_id', 1)  # Default to admin if missing, though main.py injects it
             
             if created_at:
                 conn.execute(
-                    """INSERT INTO feedbacks (content, device_id, created_at, included_in_analysis, emotion)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (fb['content'], device_id, created_at, included, emotion)
+                    """INSERT INTO feedbacks (content, device_id, created_at, included_in_analysis, emotion, teacher_id)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (fb['content'], device_id, created_at, included, emotion, teacher_id)
                 )
             else:
                 conn.execute(
-                    """INSERT INTO feedbacks (content, device_id, included_in_analysis, emotion)
-                       VALUES (?, ?, ?, ?)""",
-                    (fb['content'], device_id, included, emotion)
+                    """INSERT INTO feedbacks (content, device_id, included_in_analysis, emotion, teacher_id)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (fb['content'], device_id, included, emotion, teacher_id)
                 )
             imported_count += 1
         conn.commit()
@@ -220,3 +246,68 @@ def set_setting(key: str, value: str):
             (key, value, value)
         )
         conn.commit()
+
+
+# Teacher Management
+
+def create_teacher(name: str, email: str, password_hash: str, unique_code: str, is_admin: bool = False) -> int:
+    """Create a new teacher."""
+    with get_db() as conn:
+        try:
+            cursor = conn.execute(
+                """INSERT INTO teachers (name, email, password_hash, unique_code, is_admin) 
+                   VALUES (?, ?, ?, ?, ?)""",
+                (name, email, password_hash, unique_code, is_admin)
+            )
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+def get_teacher_by_email(email: str) -> Optional[dict]:
+    """Get teacher by email."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM teachers WHERE email = ?", (email,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_teacher_by_id(teacher_id: int) -> Optional[dict]:
+    """Get teacher by ID."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM teachers WHERE id = ?", (teacher_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_teacher_by_code(unique_code: str) -> Optional[dict]:
+    """Get teacher by unique code."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM teachers WHERE unique_code = ?", (unique_code,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def deduct_credit(teacher_id: int) -> bool:
+    """Deduct 1 credit from teacher. Returns True if successful."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "UPDATE teachers SET credits = credits - 1 WHERE id = ? AND credits > 0",
+            (teacher_id,)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+def add_credits(teacher_id: int, amount: int):
+    """Add credits to teacher."""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE teachers SET credits = credits + ? WHERE id = ?",
+            (amount, teacher_id)
+        )
+        conn.commit()
+
+
+def get_all_teachers() -> list[dict]:
+    """Get all teachers."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM teachers ORDER BY created_at DESC")
+        return [dict(row) for row in cursor.fetchall()]
+

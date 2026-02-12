@@ -41,7 +41,8 @@ from app.database import (
     get_teacher_by_code,
     get_teacher_by_id,
     deduct_credit,
-    add_credits
+    add_credits,
+    update_teacher_password
 )
 from app.models import (
     FeedbackRequest,
@@ -82,6 +83,29 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 @app.on_event("startup")
 async def startup_event():
     init_db()
+    sync_admin_account()
+
+def sync_admin_account():
+    """Ensure the main admin account exists and matches environment variables."""
+    admin_email = "mohamedhousni@afeedny.com"
+    # Read password from environment, default to 'password123' if not set
+    admin_password = os.getenv("TEACHER_PASSWORD", "password123")
+    
+    admin_hash = get_password_hash(admin_password)
+    
+    existing = get_teacher_by_email(admin_email)
+    if not existing:
+        # Create default admin with a fixed code
+        create_teacher("Mohamed HOUSNI", admin_email, admin_hash, "ADMIN", is_admin=True)
+        # We don't have the ID here directly without re-querying, 
+        # but create_teacher handles insertion.
+        # Let's ensure it has credits
+        new_admin = get_teacher_by_email(admin_email)
+        if new_admin:
+            add_credits(new_admin['id'], 1000)
+    else:
+        # Check if password needs synchronization (or just update it to be safe)
+        update_teacher_password(admin_email, admin_hash)
 
 
 def get_device_id(request: Request) -> str:

@@ -264,6 +264,16 @@ def create_teacher(name: str, email: str, password_hash: str, unique_code: str, 
         except sqlite3.IntegrityError:
             return None
 
+def update_teacher_password(email: str, password_hash: str) -> bool:
+    """Update teacher's password hash."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "UPDATE teachers SET password_hash = ? WHERE email = ?",
+            (password_hash, email)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
 def get_teacher_by_email(email: str) -> Optional[dict]:
     """Get teacher by email."""
     with get_db() as conn:

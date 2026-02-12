@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +42,8 @@ from app.database import (
     get_teacher_by_id,
     deduct_credit,
     add_credits,
-    update_teacher_password
+    update_teacher_password,
+    update_teacher_code
 )
 from app.models import (
     FeedbackRequest,
@@ -453,7 +454,8 @@ async def analyze_feedbacks_endpoint(
     teacher: dict = Depends(get_current_teacher)
 ):
     """Analyze selected feedbacks and generate wordcloud (teacher only)."""
-    if teacher['credits'] <= 0:
+    # Admin has unlimited credits
+    if not teacher.get('is_admin') and teacher['credits'] <= 0:
         raise HTTPException(status_code=403, detail="Crédits insuffisants. Veuillez recharger votre compte.")
 
     if not request_data.feedback_ids:
@@ -492,20 +494,36 @@ async def analyze_feedbacks_endpoint(
     )
 
     wordcloud_image, word_frequencies = wordcloud_result
+    wordcloud_base64, word_frequencies = wordcloud_result
 
-    if not summary:
-        summary = "Erreur lors de la génération du résumé. Veuillez réessayer."
-    else:
-        # Deduct credit only if successful
+    if not analysis:
+        analysis = "Erreur lors de la génération du résumé. Veuillez réessayer."
+    # Deduct credit if not admin
+    if not teacher.get('is_admin'):
         deduct_credit(teacher['id'])
+    
+    return {
+        "summary": analysis,
+        "wordcloud_data": {"image": wordcloud_base64}
+    }
 
-    return AnalyzeResponse(
-        summary=summary,
-        wordcloud_data={
-            "image": wordcloud_image,
-            "frequencies": word_frequencies
-        }
-    )
+
+@app.post("/api/teacher/update_code")
+async def update_code(
+    request: Request,
+    data: dict = Body(...),
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Update teacher's unique invite code."""
+    new_code = data.get("code")
+    if not new_code or len(new_code) < 3:
+        raise HTTPException(status_code=400, detail="Code trop court (min 3 caractères)")
+    
+    success = update_teacher_code(teacher['id'], new_code)
+    if not success:
+        raise HTTPException(status_code=400, detail="Ce code est déjà utilisé, veuillez en choisir un autre")
+    
+    return {"status": "success", "new_code": new_code.upper()}
 
 
 @app.post("/api/reset")

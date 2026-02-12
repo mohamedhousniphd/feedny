@@ -15,11 +15,13 @@
             <h1>📊 Tableau de bord - {{name}}</h1>
             <div class="header-controls">
                 <div class="code-display" title="Partagez ce code avec vos étudiants">
-                    Code: <strong>{{unique_code}}</strong>
+                    Code: <strong id="teacher-code-display">{{unique_code}}</strong>
+                    <button id="edit-code-btn" class="btn btn-sm"
+                        style="padding: 2px 4px; font-size: 0.7em;">✏️</button>
                 </div>
                 <div class="credits_display"
                     style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; margin-right: 10px;">
-                    💎 Crédits: <strong id="credits-count">{{credits}}</strong>
+                    💎 Crédits: <strong id="credits-count">${teacher.is_admin ? '∞' : teacher.credits}</strong>
                     <a href="/static/payment.html" class="btn btn-sm btn-primary"
                         style="margin-left: 5px; font-size: 0.8em; padding: 2px 8px;">Recharger</a>
                 </div>
@@ -175,9 +177,41 @@
             document.getElementById('reset-btn').addEventListener('click', resetDatabase);
             document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
             document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
+            document.getElementById('edit-code-btn').addEventListener('click', editUniqueCode);
             document.getElementById('download-wordcloud-btn').addEventListener('click', downloadWordcloud);
             document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
         });
+
+        async function editUniqueCode() {
+            const currentCode = document.getElementById('teacher-code-display').textContent;
+            const newCode = prompt("Entrez votre nouveau code d'invitation (min 3 caractères) :", currentCode);
+
+            if (!newCode || newCode === currentCode) return;
+            if (newCode.length < 3) {
+                alert("Le code doit faire au moins 3 caractères.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/teacher/update_code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: newCode })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('teacher-code-display').textContent = data.new_code;
+                    alert("Code mis à jour avec succès !");
+                    location.reload(); // To update any other UI dependencies
+                } else {
+                    alert(data.detail || "Erreur lors de la mise à jour du code");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Erreur de connexion");
+            }
+        }
 
         let currentWordcloudImage = '';
 

@@ -295,6 +295,19 @@ def get_teacher_by_code(unique_code: str) -> Optional[dict]:
         row = cursor.fetchone()
         return dict(row) if row else None
 
+def update_teacher_code(teacher_id: int, new_code: str) -> bool:
+    """Update teacher's unique code. Returns True if successful."""
+    with get_db() as conn:
+        try:
+            cursor = conn.execute(
+                "UPDATE teachers SET unique_code = ? WHERE id = ?",
+                (new_code.upper(), teacher_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        except sqlite3.IntegrityError:
+            return False
+
 def deduct_credit(teacher_id: int) -> bool:
     """Deduct 1 credit from teacher. Returns True if successful."""
     with get_db() as conn:

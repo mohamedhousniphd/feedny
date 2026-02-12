@@ -71,7 +71,10 @@ label {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"],
+input[type="tel"],
+input[type="number"],
 textarea {
     width: 100%;
     padding: 16px;
@@ -86,7 +89,8 @@ textarea {
 }
 
 input:focus,
-textarea:focus {
+textarea:focus,
+input[type="email"]:focus {
     outline: none;
     border-color: var(--color-primary);
 }
@@ -245,6 +249,11 @@ textarea {
 .error-message p {
     color: var(--color-error);
     margin: 0;
+}
+
+.auth-link {
+    text-align: center;
+    margin-top: 15px;
 }
 
 /* Dashboard */

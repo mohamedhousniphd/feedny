@@ -155,9 +155,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     # Verify code
     teacher = get_teacher_by_code(code.upper())
     if not teacher:
-        # Invalid code, go back to landing with error (for now just landing)
-        response = Response(status_code=302)
-        response.headers["Location"] = "/"
+        # Invalid code, go back to landing
+        response = Response(status_code=302, headers={"Location": "/"})
         response.delete_cookie("teacher_code")
         return response
 
@@ -169,15 +168,14 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 
     # Inject data (handle optional spaces in tags)
     import re
-    # Fetch teacher's specific question (need to implement per-teacher settings later, using global/default for now or teacher name)
-    # Ideally, settings table should have teacher_id, but for now let's use global or just a placeholder
-    # TODO: Implement per-teacher question. For now, using global setting as fallback.
+    # Fetch teacher's specific question
     question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     
     html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
     html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
     html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
-    html = html.replace('Feedny', f"Feedny - {teacher['name']}") # Personalize header
+    html = html.replace('Feedny', f"Afeedny - {teacher['name']}") # Personalize header
+    html = html.replace('Afeedny', f"Afeedny - {teacher['name']}") # Handle rebranded name
 
     response = Response(content=html, media_type="text/html")
 
@@ -210,6 +208,13 @@ async def login_page():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page():
+    """Forgot password page."""
+    with open("app/static/forgot_password.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
@@ -232,7 +237,10 @@ async def teacher_dashboard(request: Request):
     # Inject teacher info
     html = html.replace('{{name}}', teacher['name'])
     html = html.replace('{{unique_code}}', teacher['unique_code'])
-    html = html.replace('{{credits}}', str(teacher['credits']))
+    
+    # Handle credits display
+    credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
+    html = html.replace('{{credits}}', credits_display)
 
     return HTMLResponse(content=html)
 
@@ -371,10 +379,21 @@ async def submit_feedback(
     return FeedbackResponse(**feedback)
 
 
+@app.get("/api/student/logout")
+async def student_logout(response: Response):
+    """Clear student teacher code cookie."""
+    response = Response(status_code=302)
+    response.headers["Location"] = "/"
+    response.delete_cookie("teacher_code")
+    return response
+
+
 @app.get("/api/question")
-async def get_question():
+async def get_question(
+    teacher: dict = Depends(get_current_teacher)
+):
     """Get the current teacher question."""
-    question = get_setting("current_question", "Comment s'est passé votre cours ?")
+    question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     return {"question": question}
 
 
@@ -389,11 +408,18 @@ async def update_question(
     if not question:
         raise HTTPException(status_code=400, detail="La question ne peut pas être vide")
     
-    # In a real multi-tenant app, this would be per-teacher
-    # For MVP, we use teacher_id in settings if possible or a global one
-    # TODO: Refactor set_setting to support teacher_id
-    set_setting("current_question", question)
+    # Per-teacher setting
+    set_setting(f"question_{teacher['id']}", question)
     return {"status": "success", "question": question}
+
+
+@app.get("/api/stats")
+async def get_stats(teacher: dict = Depends(get_current_teacher)):
+    """Get feedback statistics for the dashboard."""
+    feedbacks = get_all_feedbacks(teacher['id'])
+    total = len(feedbacks)
+    selected = sum(1 for fb in feedbacks if fb['included_in_analysis'])
+    return {"total": total, "selected": selected}
 
 
 @app.get("/api/status", response_model=StatusResponse)
@@ -577,10 +603,215 @@ async def export_csv(
 
 
 # Health check endpoints for Railway serverless
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for Railway."""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+# Password Reset & Email
+import resend
+
+@app.post("/api/auth/forgot-password")
+async def forgot_password(data: dict = Body(...)):
+    """Send password reset email."""
+    email = data.get("email")
+    teacher = get_teacher_by_email(email)
+    if not teacher:
+        # Don't reveal if email exists, fake success
+        return {"message": "Si cet email existe, un lien a été envoyé."}
+        
+    # Generate reset token (simple implementation: use JWT with short expiry)
+    reset_token = create_access_token(data={"sub": email, "type": "reset"}, expires_delta=timedelta(minutes=15))
+    
+    # Send email via Resend
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+    if not RESEND_API_KEY:
+        print(f"Warning: RESEND_API_KEY not set. Reset token for {email}: {reset_token}")
+        return {"message": "Email envoyé (Mode Dev: vérifier logs serveur pour le token)"}
+    
+    try:
+        resend.api_key = RESEND_API_KEY
+        # In a real app, strict reset URL. Here assuming localhost or deployed URL
+        # We need a frontend page to handle the token, let's call it /reset-password?token=...
+        # For this MVP, we will send a new temporary password directly or a link if we had a page
+        
+        # Option A: Send temporary password
+        # Option B: Link to reset page
+        
+        # Let's go with Option A for simplicity in MVP, OR link to a reset page we create
+        # Creating a reset page is better UX.
+        # Let's create /reset-password page in main.py serving static file
+        
+        reset_link = f"https://afeedny.up.railway.app/reset-password?token={reset_token}" # Replace with env var for domain
+        
+        resend.Emails.send({
+            "from": "Afeedny <onboarding@resend.dev>", # or verified domain
+            "to": email,
+            "subject": "Réinitialisation de mot de passe - Afeedny",
+            "html": f"""
+                <p>Bonjour {teacher['name']},</p>
+                <p>Vous avez demandé une réinitialisation de mot de passe.</p>
+                <p>Cliquez sur le lien suivant pour définir un nouveau mot de passe :</p>
+                <a href="{reset_link}">Réinitialiser mon mot de passe</a>
+                <p>Ce lien expire dans 15 minutes.</p>
+            """
+        })
+        return {"message": "Email de réinitialisation envoyé."}
+    except Exception as e:
+        print(f"Resend error: {e}")
+        return {"message": "Erreur lors de l'envoi de l'email."}
+
+
+@app.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(token: str):
+    """Serve reset password page."""
+    # We can reuse forgot_password.html layout or create new
+    # Let's assume we create 'reset_password.html'
+    with open("app/static/reset_password.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    # Inject token into JS
+    html = html.replace('{{token}}', token)
+    return HTMLResponse(content=html)
+
+
+@app.post("/api/auth/reset-password")
+async def reset_password_confirm(data: dict = Body(...)):
+    """Confirm password reset."""
+    token = data.get("token")
+    new_password = data.get("password")
+    
+    payload = decode_access_token(token)
+    if not payload or payload.get("type") != "reset":
+         raise HTTPException(status_code=400, detail="Lien invalide ou expiré")
+         
+    email = payload.get("sub")
+    pwd_hash = get_password_hash(new_password)
+    update_teacher_password(email, pwd_hash)
+    
+    return {"message": "Mot de passe modifié avec succès."}
+
+
+# Payment & Receipts API
+
+@app.post("/api/payment/upload")
+async def upload_receipt(
+    file: UploadFile = File(...),
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Upload a payment receipt."""
+    # Ensure uploads directory exists
+    UPLOAD_DIR = "app/static/uploads/receipts"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    # Save file
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = f"{UPLOAD_DIR}/{filename}"
+    
+    with open(file_path, "wb") as buffer:
+        import shutil
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Create receipt record
+    # Store relative path for serving
+    relative_path = f"/static/uploads/receipts/{filename}"
+    from app.database import create_payment_receipt
+    create_payment_receipt(teacher['id'], relative_path)
+    
+    return {"status": "success", "message": "Reçu envoyé avec succès"}
+
+
+@app.get("/api/payment/instructions")
+async def get_payment_instructions(
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Get payment instructions."""
+    instructions = get_setting("payment_instructions", "Veuillez contacter l'administrateur pour les instructions de paiement.")
+    return {"instructions": instructions}
+
+
+# Admin API
+
+@app.post("/api/admin/instructions")
+async def save_payment_instructions(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Save payment instructions (Admin only)."""
+    if not teacher['is_admin']:
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    data = await request.json()
+    instructions = data.get("instructions")
+    set_setting("payment_instructions", instructions)
+    return {"status": "success"}
+
+
+@app.get("/api/admin/receipts")
+async def list_receipts(
+    teacher: dict = Depends(get_current_teacher)
+):
+    """List all receipts (Admin only)."""
+    if not teacher['is_admin']:
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    from app.database import get_all_receipts
+    return {"receipts": get_all_receipts()}
+
+
+@app.post("/api/admin/receipts/{receipt_id}/approve")
+async def approve_receipt(
+    receipt_id: int,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Approve a receipt and add credits (Admin only)."""
+    if not teacher['is_admin']:
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    from app.database import get_receipt_by_id, update_receipt_status, add_credits
+    
+    receipt = get_receipt_by_id(receipt_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Reçu non trouvé")
+        
+    if receipt['status'] == 'approved':
+        return {"status": "success", "message": "Déjà approuvé"}
+        
+    # Approve and add credits (e.g., 5 credits per valid payment)
+    # TODO: Make credit amount configurable or part of the request
+    CREDITS_PER_PAYMENT = 10 
+    
+    update_receipt_status(receipt_id, 'approved')
+    add_credits(receipt['teacher_id'], CREDITS_PER_PAYMENT)
+    
+    return {"status": "success", "message": f"Reçu validé, {CREDITS_PER_PAYMENT} crédits ajoutés"}
+
+
+@app.post("/api/admin/receipts/{receipt_id}/reject")
+async def reject_receipt(
+    receipt_id: int,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Reject a receipt (Admin only)."""
+    if not teacher['is_admin']:
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    from app.database import update_receipt_status
+    update_receipt_status(receipt_id, 'rejected')
+    return {"status": "success", "message": "Reçu rejeté"}
+
+
+@app.get("/api/admin/teachers")
+async def list_teachers(
+    teacher: dict = Depends(get_current_teacher)
+):
+    """List all teachers (Admin only)."""
+    if not teacher['is_admin']:
+        raise HTTPException(status_code=403, detail="Admin only")
+        
+    from app.database import get_all_teachers
+    teachers = get_all_teachers()
+    # Mask passwords
+    for t in teachers:
+        del t['password_hash']
+    return {"teachers": teachers}
+
+
 
 
 @app.get("/healthz")

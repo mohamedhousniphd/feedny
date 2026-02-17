@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acheter des Crédits - Feedny</title>
+    <title>Acheter des Crédits - Afeedny</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         .pricing-card {
@@ -59,36 +59,79 @@
         </div>
 
         <div class="pricing-card">
-            <h2>Pack Standard</h2>
-            <div class="price">10 $</div>
-            <p>pour 10 analyses complètes</p>
+            <h2>Recharger vos crédits</h2>
 
-            <ul class="features-list">
-                <li>Analyse IA détaillée des feedbacks</li>
-                <li>Génération de nuages de mots</li>
-                <li>Export PDF professionnel</li>
-                <li>Jusqu'à 200 feedbacks par analyse</li>
-                <li>Support prioritaire</li>
-            </ul>
+            <div id="instructions-container" class="payment-instructions">
+                <h3>Instructions de Paiement</h3>
+                <p id="payment-text">Chargement des instructions...</p>
+            </div>
 
-            <div class="payment-instructions">
-                <h3>Comment payer ?</h3>
-                <p>Pour activer vos crédits, veuillez effectuer le paiement via le lien ci-dessous ou par virement
-                    bancaire.</p>
-                <p><strong>Une fois le paiement effectué, envoyez votre preuve de paiement à </strong> <a
-                        href="mailto:admin@feedny.com">admin@feedny.com</a> en précisant votre email de compte
-                    enseignant.</p>
-
-                <div style="margin-top: 20px; text-align: center;">
-                    <a href="#" class="btn btn-primary"
-                        onclick="alert('Lien de paiement à configurer'); return false;">Payer par Carte Bancaire</a>
-                </div>
+            <div class="upload-section" style="margin-top: 30px; text-align: left;">
+                <h3>Envoyer une preuve de paiement</h3>
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label for="receipt-file">Reçu / Capture d'écran</label>
+                        <input type="file" id="receipt-file" accept="image/*,.pdf" required
+                            style="display: block; width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Envoyer la preuve</button>
+                </form>
             </div>
 
             <div style="margin-top: 20px;">
                 <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
             </div>
         </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', async () => {
+                // Load instructions
+                try {
+                    const response = await fetch('/api/payment/instructions');
+                    const data = await response.json();
+                    document.getElementById('payment-text').innerHTML = data.instructions.replace(/\n/g, '<br>');
+                } catch (error) {
+                    console.error('Error loading instructions:', error);
+                    document.getElementById('payment-text').textContent = "Erreur de chargement des instructions.";
+                }
+
+                // Handle upload
+                document.getElementById('upload-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const fileInput = document.getElementById('receipt-file');
+                    const file = fileInput.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const btn = e.target.querySelector('button');
+                        btn.disabled = true;
+                        btn.textContent = 'Envoi en cours...';
+
+                        const response = await fetch('/api/payment/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const result = await response.json();
+                        if (response.ok) {
+                            alert('Reçu envoyé avec succès ! L\'administrateur validera votre paiement prochainement.');
+                            fileInput.value = '';
+                        } else {
+                            alert('Erreur: ' + (result.detail || 'Erreur lors de l\'envoi'));
+                        }
+                    } catch (error) {
+                        alert('Erreur de connexion');
+                    } finally {
+                        const btn = e.target.querySelector('button');
+                        btn.disabled = false;
+                        btn.textContent = 'Envoyer la preuve';
+                    }
+                });
+            });
+        </script>
         <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
             <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
         </footer>

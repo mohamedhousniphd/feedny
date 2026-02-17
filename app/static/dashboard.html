@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feedny - Tableau de Bord</title>
+    <title>Afeedny - Tableau de Bord</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 
@@ -21,7 +21,7 @@
                 </div>
                 <div class="credits_display"
                     style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; margin-right: 10px;">
-                    💎 Crédits: <strong id="credits-count">${teacher.is_admin ? '∞' : teacher.credits}</strong>
+                    💎 Crédits: <strong id="credits-count">{{credits}}</strong>
                     <a href="/static/payment.html" class="btn btn-sm btn-primary"
                         style="margin-left: 5px; font-size: 0.8em; padding: 2px 8px;">Recharger</a>
                 </div>
@@ -218,6 +218,10 @@
         async function loadFeedbacks() {
             try {
                 const response = await fetch('/api/feedbacks');
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const data = await response.json();
 
                 const tbody = document.getElementById('feedbacks-body');
@@ -261,6 +265,10 @@
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const stats = await response.json();
                 document.getElementById('total-feedbacks').textContent = stats.total;
                 document.getElementById('selected-feedbacks').textContent = stats.selected;
@@ -272,6 +280,10 @@
         async function loadQuestion() {
             try {
                 const response = await fetch('/api/question');
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
                 const data = await response.json();
                 document.getElementById('teacher-question-input').value = data.question;
             } catch (error) {
@@ -294,6 +306,11 @@
                     },
                     body: JSON.stringify({ question: question })
                 });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
 
                 if (response.ok) {
                     alert('Question enregistrée avec succès');
@@ -351,6 +368,11 @@
                         context: context
                     })
                 });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -415,6 +437,11 @@
                 const response = await fetch('/api/reset', {
                     method: 'POST'
                 });
+
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
 
                 if (response.ok) {
                     alert('Base de données réinitialisée avec succès');

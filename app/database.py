@@ -77,6 +77,16 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS payment_receipts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                teacher_id INTEGER NOT NULL,
+                file_path TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (teacher_id) REFERENCES teachers (id)
+            )
+        """)
         conn.commit()
 
 
@@ -326,6 +336,48 @@ def add_credits(teacher_id: int, amount: int):
             (amount, teacher_id)
         )
         conn.commit()
+
+
+def create_payment_receipt(teacher_id: int, file_path: str) -> int:
+    """Create a new payment receipt."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO payment_receipts (teacher_id, file_path) VALUES (?, ?)",
+            (teacher_id, file_path)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_all_receipts() -> list[dict]:
+    """Get all receipts with teacher details."""
+    with get_db() as conn:
+        cursor = conn.execute("""
+            SELECT r.*, t.name as teacher_name, t.email as teacher_email 
+            FROM payment_receipts r
+            JOIN teachers t ON r.teacher_id = t.id
+            ORDER BY r.created_at DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_receipt_status(receipt_id: int, status: str) -> bool:
+    """Update receipt status."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "UPDATE payment_receipts SET status = ? WHERE id = ?",
+            (status, receipt_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def get_receipt_by_id(receipt_id: int) -> Optional[dict]:
+    """Get receipt by ID."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM payment_receipts WHERE id = ?", (receipt_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def get_all_teachers() -> list[dict]:

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -814,10 +814,11 @@ async def list_teachers(
 
 
 
+@app.get("/health")
 @app.get("/healthz")
-async def healthz():
-    """Alias health check endpoint."""
-    return {"status": "healthy"}
+async def health_check():
+    """Health check endpoint for Railway."""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 
 # JSON Export/Import for data persistence
@@ -849,12 +850,8 @@ async def export_json(
     )
 
 
-@app.post("/api/import")
-async def import_json(
-    request: Request,
-    teacher: dict = Depends(get_current_teacher)
-):
-    """Import feedbacks from JSON (teacher only)."""
+    # Function continued below
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
     """Admin dashboard page."""

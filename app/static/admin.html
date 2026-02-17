@@ -243,8 +243,17 @@
 
         async function resetPassword(email) {
             if (!confirm(`Envoyer un email de réinitialisation à ${email} ?`)) return;
-            // TODO: Implement actual trigger endpoint
-            alert("Fonctionnalité en cours d'implémentation (Phase 15)");
+            try {
+                const response = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await response.json();
+                alert(data.message);
+            } catch (e) {
+                alert("Erreur de connexion");
+            }
         }
 
         document.getElementById('save-instructions-btn').addEventListener('click', async () => {
@@ -258,17 +267,37 @@
         });
 
         async function addCredits(email, amount) {
-            // ... existing addCredits logic but updated to rely on backend ...
-            // For now we don't have a direct endpoint for manual credit add by email except seed?
-            // actually we should probably add one.
-            // Mock for now or use the one we have if it exists.
-            // We'll skip implementing manual add by email logic change for this exact snippet step to keep it focused.
-            // But existing addCredits in admin.html was incomplete.
-            // Let's implement valid logic.
-            // Assuming we add /api/admin/credits endpoint or similar.
-            // For now just alert that this specific button needs endpoint.
-            alert('Utilisez la validation de reçu pour ajouter des crédits automatiquement.');
+            try {
+                const response = await fetch('/api/admin/credits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, amount: parseInt(amount) })
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    loadTeachers();
+                } else {
+                    alert(data.detail || "Erreur");
+                }
+            } catch (e) {
+                alert("Erreur de connexion");
+            }
         }
+
+        // Search functionality
+        document.getElementById('search-btn').addEventListener('click', () => {
+            const email = document.getElementById('search-email').value.toLowerCase();
+            const rows = document.querySelectorAll('#teachers-list tr');
+            rows.forEach(row => {
+                const rowEmail = row.cells[1].textContent.toLowerCase();
+                if (rowEmail.includes(email)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
 
         // Initial load
         loadTeachers();

@@ -27,6 +27,8 @@
                         style="margin-left: 5px; font-size: 0.8em; padding: 2px 8px;">Recharger</a>
                 </div>
                 <button id="logout-btn" class="btn btn-secondary">Déconnexion</button>
+                <a href="/admin" id="admin-panel-link" class="btn btn-secondary hidden"
+                    style="background: #333; color: white;">⚙️ Admin</a>
             </div>
         </div>
 
@@ -273,6 +275,12 @@
                 const stats = await response.json();
                 document.getElementById('total-feedbacks').textContent = stats.total;
                 document.getElementById('selected-feedbacks').textContent = stats.selected;
+
+                // Show admin link if credits is infinity (admin role)
+                const credits = document.getElementById('credits-count').textContent;
+                if (credits === '∞') {
+                    document.getElementById('admin-panel-link').classList.remove('hidden');
+                }
             } catch (error) {
                 console.error('Error loading stats:', error);
             }

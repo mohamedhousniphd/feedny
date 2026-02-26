@@ -424,3 +424,14 @@ def get_analysis_history(teacher_id: int, limit: int = 20) -> list[dict]:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+
+def delete_analysis_by_id(analysis_id: int, teacher_id: int) -> bool:
+    """Delete an analysis by ID, only if it belongs to the teacher."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM analysis_history WHERE id = ? AND teacher_id = ?",
+            (analysis_id, teacher_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+

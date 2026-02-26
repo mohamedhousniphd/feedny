@@ -545,6 +545,19 @@ async def get_analyses(
     return {"analyses": history}
 
 
+@app.delete("/api/analyses/{analysis_id}")
+async def delete_analysis(
+    analysis_id: int,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Delete an analysis from history."""
+    from app.database import delete_analysis_by_id
+    success = delete_analysis_by_id(analysis_id, teacher['id'])
+    if not success:
+        raise HTTPException(status_code=404, detail="Analyse non trouvée")
+    return {"success": True}
+
+
 @app.post("/api/teacher/update_code")
 async def update_code(
     request: Request,

@@ -480,9 +480,10 @@ async def analyze_feedbacks_endpoint(
         feedback_contents = [fb["content"] for fb in feedbacks]
         feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-        # Run wordcloud generation and AI analysis in parallel
+        # Run wordcloud (sync, CPU-bound) in thread pool so it doesn't block
+        # the event loop, allowing the DeepSeek HTTP call to run concurrently
         async def run_wordcloud():
-            return create_wordcloud(feedbacks_text)
+            return await asyncio.to_thread(create_wordcloud, feedbacks_text)
 
         async def run_ai_analysis():
             return await analyze_feedbacks(
@@ -499,7 +500,7 @@ async def analyze_feedbacks_endpoint(
         wordcloud_base64, word_frequencies = wordcloud_result
 
         if not summary:
-            summary = "L'analyse IA n'est pas disponible (clé API DEEPSEEK non configurée). Le nuage de mots a été généré."
+            summary = "L'analyse IA n'est pas disponible. Le nuage de mots a été généré."
         
         # Deduct credit if not admin
         if not teacher.get('is_admin'):
@@ -510,7 +511,8 @@ async def analyze_feedbacks_endpoint(
             "wordcloud_data": {"image": wordcloud_base64}
         }
     except Exception as e:
-        print(f"Error in analyze endpoint: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse: {str(e)}")
 
 
@@ -788,7 +790,7 @@ async def list_teachers(
     teachers = get_all_teachers()
     # Mask passwords
     for t in teachers:
-        del t['password_hash']
+        t.pop('password_hash', None)
     return {"teachers": teachers}
 
 
@@ -830,8 +832,6 @@ async def export_json(
     )
 
 
-    # Function continued below
-
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
     """Admin dashboard page."""
@@ -866,19 +866,6 @@ async def add_credits_endpoint(
     add_credits(target_teacher['id'], data.amount)
     return {"success": True, "message": f"{data.amount} crédits ajoutés à {data.email}"}
 
-
-@app.get("/api/admin/teachers")
-async def list_teachers(teacher: dict = Depends(get_current_teacher)):
-    """List all teachers (admin only)."""
-    if not teacher.get('is_admin'):
-        raise HTTPException(status_code=403, detail="Non autorisé")
-    
-    from app.database import get_all_teachers
-    teachers = get_all_teachers()
-    # Mask password hashes
-    for t in teachers:
-        t.pop('password_hash', None)
-    return teachers
 
 
 @app.post("/api/import")

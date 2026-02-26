@@ -388,11 +388,11 @@
                 if (response.ok) {
                     displayResults(data);
                 } else {
-                    alert('Erreur lors de l\'analyse: ' + (data.detail || 'Erreur inconnue'));
+                    alert('Erreur: ' + (data.detail || 'Erreur inconnue'));
                 }
             } catch (error) {
                 console.error('Error analyzing feedbacks:', error);
-                alert('Erreur de connexion. Veuillez réessayer.');
+                alert('Erreur réseau. Vérifiez votre connexion et réessayez.');
             } finally {
                 showLoading(false);
             }

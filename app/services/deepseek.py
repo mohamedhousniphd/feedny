@@ -26,10 +26,12 @@ async def analyze_feedbacks(
         Generated summary or None if failed
     """
     if not DEEPSEEK_API_KEY:
-        raise ValueError("DEEPSEEK_API_KEY is not configured")
+        print("Warning: DEEPSEEK_API_KEY is not configured")
+        return None
 
     if not feedbacks:
-        raise ValueError("No feedbacks to analyze")
+        print("Warning: No feedbacks to analyze")
+        return None
 
     # Combine feedbacks with emotions if available
     feedbacks_text = ""

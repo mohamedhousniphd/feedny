@@ -355,30 +355,6 @@ async def submit_feedback(
     return FeedbackResponse(**feedback)
 
 
-    # Check if device has already submitted
-    can_submit, count = check_device_limit(device_id)
-    if not can_submit:
-        raise HTTPException(status_code=403, detail="Vous avez déjà soumis un feedback")
-
-    # Insert feedback with emotion
-    feedback_id = insert_feedback(request.content, device_id, request.emotion)
-    increment_device_feedback(device_id)
-
-    # Get the created feedback
-    feedback = get_feedback_by_id(feedback_id)
-
-    # Set device ID cookie
-    response.set_cookie(
-        key="device_id",
-        value=device_id,
-        max_age=365*24*60*60,
-        httponly=True,
-        samesite="lax"
-    )
-
-    return FeedbackResponse(**feedback)
-
-
 @app.get("/api/student/logout")
 async def student_logout(response: Response):
     """Clear student teacher code cookie."""
@@ -498,39 +474,44 @@ async def analyze_feedbacks_endpoint(
     if not feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback trouvé")
 
-    # Extract content and emotions
-    feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
-    feedback_contents = [fb["content"] for fb in feedbacks]
-    feedback_emotions = [fb.get("emotion") for fb in feedbacks]
+    try:
+        # Extract content and emotions
+        feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
+        feedback_contents = [fb["content"] for fb in feedbacks]
+        feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-    # Run wordcloud generation and AI analysis in parallel
-    async def run_wordcloud():
-        return create_wordcloud(feedbacks_text)
+        # Run wordcloud generation and AI analysis in parallel
+        async def run_wordcloud():
+            return create_wordcloud(feedbacks_text)
 
-    async def run_ai_analysis():
-        return await analyze_feedbacks(
-            feedbacks=feedback_contents,
-            context=request_data.context,
-            emotions=feedback_emotions
+        async def run_ai_analysis():
+            return await analyze_feedbacks(
+                feedbacks=feedback_contents,
+                context=request_data.context,
+                emotions=feedback_emotions
+            )
+
+        wordcloud_result, summary = await asyncio.gather(
+            run_wordcloud(),
+            run_ai_analysis()
         )
 
-    wordcloud_result, summary = await asyncio.gather(
-        run_wordcloud(),
-        run_ai_analysis()
-    )
+        wordcloud_base64, word_frequencies = wordcloud_result
 
-    wordcloud_base64, word_frequencies = wordcloud_result
-
-    if not summary:
-        summary = "Erreur lors de la génération du résumé. Veuillez réessayer."
-    # Deduct credit if not admin
-    if not teacher.get('is_admin'):
-        deduct_credit(teacher['id'])
-    
-    return {
-        "summary": summary,
-        "wordcloud_data": {"image": wordcloud_base64}
-    }
+        if not summary:
+            summary = "L'analyse IA n'est pas disponible (clé API DEEPSEEK non configurée). Le nuage de mots a été généré."
+        
+        # Deduct credit if not admin
+        if not teacher.get('is_admin'):
+            deduct_credit(teacher['id'])
+        
+        return {
+            "summary": summary,
+            "wordcloud_data": {"image": wordcloud_base64}
+        }
+    except Exception as e:
+        print(f"Error in analyze endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse: {str(e)}")
 
 
 @app.post("/api/teacher/update_code")

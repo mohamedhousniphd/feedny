@@ -474,49 +474,42 @@ async def analyze_feedbacks_endpoint(
     if not feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback trouvé")
 
+    # Extract content and emotions
+    feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
+    feedback_contents = [fb["content"] for fb in feedbacks]
+    feedback_emotions = [fb.get("emotion") for fb in feedbacks]
+
+    # Step 1: Generate wordcloud (synchronous, run directly - NOT in thread to avoid matplotlib crash)
+    wordcloud_base64 = ""
     try:
-        # Extract content and emotions
-        feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
-        feedback_contents = [fb["content"] for fb in feedbacks]
-        feedback_emotions = [fb.get("emotion") for fb in feedbacks]
-
-        # Run wordcloud (sync, CPU-bound) in thread pool so it doesn't block
-        # the event loop, allowing the DeepSeek HTTP call to run concurrently
-        async def run_wordcloud():
-            return await asyncio.to_thread(create_wordcloud, feedbacks_text)
-
-        async def run_ai_analysis():
-            return await analyze_feedbacks(
-                feedbacks=feedback_contents,
-                context=request_data.context,
-                emotions=feedback_emotions
-            )
-
-        wordcloud_result, summary = await asyncio.gather(
-            run_wordcloud(),
-            run_ai_analysis()
-        )
-
-        # Safely unpack wordcloud result (could be (None, {}) on error)
-        wordcloud_base64 = ""
-        if wordcloud_result:
-            wordcloud_base64 = wordcloud_result[0] or ""
-
-        if not summary:
-            summary = "L'analyse IA n'est pas disponible. Le nuage de mots a été généré."
-        
-        # Deduct credit if not admin
-        if not teacher.get('is_admin'):
-            deduct_credit(teacher['id'])
-        
-        return {
-            "summary": summary,
-            "wordcloud_data": {"image": wordcloud_base64}
-        }
+        result = create_wordcloud(feedbacks_text)
+        if result and result[0]:
+            wordcloud_base64 = result[0]
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse: {str(e)}")
+        print(f"Wordcloud error (non-fatal): {e}")
+
+    # Step 2: AI Analysis via DeepSeek
+    summary = ""
+    try:
+        summary = await analyze_feedbacks(
+            feedbacks=feedback_contents,
+            context=request_data.context,
+            emotions=feedback_emotions
+        )
+    except Exception as e:
+        print(f"DeepSeek error (non-fatal): {e}")
+
+    if not summary:
+        summary = "L'analyse IA n'est pas disponible. Le nuage de mots a été généré."
+    
+    # Deduct credit if not admin
+    if not teacher.get('is_admin'):
+        deduct_credit(teacher['id'])
+    
+    return {
+        "summary": summary,
+        "wordcloud_data": {"image": wordcloud_base64}
+    }
 
 
 @app.post("/api/teacher/update_code")

@@ -10,7 +10,7 @@ DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 async def analyze_feedbacks(
     feedbacks: list[str],
     context: str,
-    max_tokens: int = 800,
+    max_tokens: int = 500,
     emotions: Optional[list[int]] = None
 ) -> Optional[str]:
     """
@@ -79,7 +79,7 @@ Génère un résumé concis et actionnable."""
 
     try:
         # Increased timeout for reliability, reduced temperature for consistency
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{DEEPSEEK_BASE_URL}/chat/completions",
                 headers={

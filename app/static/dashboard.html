@@ -383,16 +383,26 @@
                     return;
                 }
 
-                const data = await response.json();
+                // Try to parse JSON, but handle non-JSON responses
+                let data;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', response.status, text);
+                    alert(`Erreur serveur (${response.status}). Veuillez réessayer.`);
+                    return;
+                }
 
                 if (response.ok) {
                     displayResults(data);
                 } else {
-                    alert('Erreur: ' + (data.detail || 'Erreur inconnue'));
+                    alert('Erreur: ' + (data.detail || data.message || 'Erreur inconnue'));
                 }
             } catch (error) {
                 console.error('Error analyzing feedbacks:', error);
-                alert('Erreur réseau. Vérifiez votre connexion et réessayez.');
+                alert('Erreur: ' + error.message + '\n\nSi le problème persiste, l\'analyse prend peut-être trop de temps. Réessayez avec moins de feedbacks.');
             } finally {
                 showLoading(false);
             }

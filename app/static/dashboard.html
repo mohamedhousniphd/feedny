@@ -140,6 +140,14 @@
             <div class="loading-spinner"></div>
             <p>Analyse en cours...</p>
         </div>
+
+        <!-- Analysis History Section -->
+        <div class="analysis-section" style="margin-top: 30px;">
+            <h2>📜 Historique des Analyses</h2>
+            <div id="history-container">
+                <p id="no-history" class="no-data">Aucune analyse précédente</p>
+            </div>
+        </div>
     </div>
 
     <footer>
@@ -151,6 +159,7 @@
             loadFeedbacks();
             loadStats();
             loadQuestion();
+            loadAnalysisHistory();
 
             // Event listeners
             document.getElementById('refresh-btn').addEventListener('click', () => {
@@ -397,6 +406,7 @@
 
                 if (response.ok) {
                     displayResults(data);
+                    loadAnalysisHistory();
                 } else {
                     alert('Erreur: ' + (data.detail || data.message || 'Erreur inconnue'));
                 }
@@ -581,6 +591,36 @@
             }
 
             event.target.value = '';
+        }
+
+        // Analysis History
+        async function loadAnalysisHistory() {
+            try {
+                const response = await fetch('/api/analyses');
+                if (!response.ok) return;
+                const data = await response.json();
+                const container = document.getElementById('history-container');
+                const noHistory = document.getElementById('no-history');
+
+                if (!data.analyses || data.analyses.length === 0) {
+                    noHistory.style.display = 'block';
+                    return;
+                }
+                noHistory.style.display = 'none';
+
+                container.innerHTML = data.analyses.map(a => `
+                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #fafafa;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong>${formatDate(a.created_at)}</strong>
+                            <span style="color: #666; font-size: 0.85em;">${a.feedback_count} feedbacks • ${a.context ? escapeHtml(a.context.substring(0, 50)) + '...' : 'Sans contexte'}</span>
+                        </div>
+                        ${a.wordcloud_image ? `<img src="data:image/png;base64,${a.wordcloud_image}" style="max-width: 100%; border-radius: 6px; margin-bottom: 10px;" alt="Wordcloud">` : ''}
+                        <div style="white-space: pre-wrap; font-size: 0.9em; line-height: 1.5;">${formatMarkdown(a.summary)}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading analysis history:', error);
+            }
         }
 
         // Store analysis data for PDF

@@ -87,6 +87,18 @@ def init_db():
                 FOREIGN KEY (teacher_id) REFERENCES teachers (id)
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                teacher_id INTEGER NOT NULL,
+                summary TEXT NOT NULL,
+                wordcloud_image TEXT,
+                feedback_count INTEGER DEFAULT 0,
+                context TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (teacher_id) REFERENCES teachers (id)
+            )
+        """)
         conn.commit()
 
 
@@ -145,7 +157,7 @@ def get_feedbacks_by_ids(feedback_ids: list[int]) -> list[dict]:
     with get_db() as conn:
         placeholders = ','.join('?' * len(feedback_ids))
         cursor = conn.execute(
-            f"SELECT id, content, device_id, created_at, included_in_analysis, emotion FROM feedbacks WHERE id IN ({placeholders})",
+            f"SELECT id, content, device_id, created_at, included_in_analysis, emotion, teacher_id FROM feedbacks WHERE id IN ({placeholders})",
             feedback_ids
         )
         return [dict(row) for row in cursor.fetchall()]
@@ -384,5 +396,31 @@ def get_all_teachers() -> list[dict]:
     """Get all teachers."""
     with get_db() as conn:
         cursor = conn.execute("SELECT * FROM teachers ORDER BY created_at DESC")
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def save_analysis(teacher_id: int, summary: str, wordcloud_image: str, feedback_count: int, context: str) -> int:
+    """Save an analysis to history."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO analysis_history (teacher_id, summary, wordcloud_image, feedback_count, context)
+               VALUES (?, ?, ?, ?, ?)""",
+            (teacher_id, summary, wordcloud_image, feedback_count, context)
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_analysis_history(teacher_id: int, limit: int = 20) -> list[dict]:
+    """Get analysis history for a teacher."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT id, summary, wordcloud_image, feedback_count, context, created_at
+               FROM analysis_history
+               WHERE teacher_id = ?
+               ORDER BY created_at DESC
+               LIMIT ?""",
+            (teacher_id, limit)
+        )
         return [dict(row) for row in cursor.fetchall()]
 

@@ -519,17 +519,16 @@ async def analyze_feedbacks_endpoint(
         run_ai_analysis()
     )
 
-    wordcloud_image, word_frequencies = wordcloud_result
     wordcloud_base64, word_frequencies = wordcloud_result
 
-    if not analysis:
-        analysis = "Erreur lors de la génération du résumé. Veuillez réessayer."
+    if not summary:
+        summary = "Erreur lors de la génération du résumé. Veuillez réessayer."
     # Deduct credit if not admin
     if not teacher.get('is_admin'):
         deduct_credit(teacher['id'])
     
     return {
-        "summary": analysis,
+        "summary": summary,
         "wordcloud_data": {"image": wordcloud_base64}
     }
 

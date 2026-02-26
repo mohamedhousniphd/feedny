@@ -449,7 +449,7 @@ async def toggle_feedback(
     return {"success": True, "message": "Statut mis à jour"}
 
 
-@app.post("/api/analyze", response_model=AnalyzeResponse)
+@app.post("/api/analyze")
 async def analyze_feedbacks_endpoint(
     request_data: AnalyzeRequest, 
     request: Request,
@@ -497,7 +497,10 @@ async def analyze_feedbacks_endpoint(
             run_ai_analysis()
         )
 
-        wordcloud_base64, word_frequencies = wordcloud_result
+        # Safely unpack wordcloud result (could be (None, {}) on error)
+        wordcloud_base64 = ""
+        if wordcloud_result:
+            wordcloud_base64 = wordcloud_result[0] or ""
 
         if not summary:
             summary = "L'analyse IA n'est pas disponible. Le nuage de mots a été généré."

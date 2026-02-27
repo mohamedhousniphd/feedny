@@ -103,7 +103,7 @@ def find_multilingual_font() -> Optional[str]:
     ]
     
     # Fonts known to support both Arabic and extended Latin well
-    target_fonts = ["tajawal", "cairo", "notosansarabic", "notosans-regular"]
+    target_fonts = ["tajawal", "cairo", "dejavu", "notosans-regular", "notosansarabic"]
     
     for font_dir in font_dirs:
         if not os.path.isdir(font_dir):

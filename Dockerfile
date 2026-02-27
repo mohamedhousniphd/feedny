@@ -20,11 +20,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies including Arabic fonts for wordcloud
+# Install runtime dependencies including multilingual fonts for wordcloud
 RUN apt-get update && apt-get install -y \
     libfreetype6 \
     libpng16-16 \
     fonts-noto-core \
+    fonts-noto-extra \
     fonts-dejavu-core \
     fontconfig \
     && rm -rf /var/lib/apt/lists/* \

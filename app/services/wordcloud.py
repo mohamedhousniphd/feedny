@@ -80,6 +80,69 @@ def get_french_stopwords() -> set[str]:
     return get_multilingual_stopwords()
 
 
+def find_multilingual_font() -> Optional[str]:
+    """Find a font that supports Arabic + Latin characters."""
+    import subprocess
+    
+    # Priority list of fonts that support Arabic
+    font_names = [
+        "NotoSansArabic",
+        "NotoSans-Regular",
+        "Noto Sans",
+        "DejaVu Sans",
+    ]
+    
+    # Search common font directories
+    font_dirs = [
+        "/usr/share/fonts",
+        "/usr/local/share/fonts",
+        "/System/Library/Fonts",           # macOS
+        "/Library/Fonts",                   # macOS
+        os.path.expanduser("~/Library/Fonts"),  # macOS user
+    ]
+    
+    for font_dir in font_dirs:
+        if not os.path.isdir(font_dir):
+            continue
+        for root, dirs, files in os.walk(font_dir):
+            for f in files:
+                if f.endswith(('.ttf', '.otf')):
+                    f_lower = f.lower()
+                    # Prefer Noto Sans Arabic specifically
+                    if 'notosansarabic' in f_lower and 'regular' in f_lower:
+                        return os.path.join(root, f)
+    
+    # Fallback: any Noto Sans font
+    for font_dir in font_dirs:
+        if not os.path.isdir(font_dir):
+            continue
+        for root, dirs, files in os.walk(font_dir):
+            for f in files:
+                if f.endswith(('.ttf', '.otf')):
+                    f_lower = f.lower()
+                    if 'notosans' in f_lower and 'regular' in f_lower:
+                        return os.path.join(root, f)
+    
+    # Final fallback: DejaVu Sans (partial Arabic support)
+    for font_dir in font_dirs:
+        if not os.path.isdir(font_dir):
+            continue
+        for root, dirs, files in os.walk(font_dir):
+            for f in files:
+                if f.endswith('.ttf') and 'dejavu' in f.lower() and 'sans' in f.lower():
+                    return os.path.join(root, f)
+    
+    return None
+
+
+# Cache the font path at module load
+_FONT_PATH = find_multilingual_font()
+if _FONT_PATH:
+    print(f"Wordcloud font: {_FONT_PATH}")
+else:
+    print("Warning: No multilingual font found, Arabic may render as squares")
+
+
 def create_wordcloud(
     text: str,
     width: int = 800,
@@ -123,7 +186,7 @@ def create_wordcloud(
             relative_scaling=0.5,
             min_font_size=10,
             random_state=42,
-            font_path=None,  # Use default font, relying on system fonts
+            font_path=_FONT_PATH,
             regexp=regex_pattern
         ).generate(processed_text)
 

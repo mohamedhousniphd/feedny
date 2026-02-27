@@ -21,8 +21,14 @@ from bidi.algorithm import get_display
 # --- Font Handling ---
 
 def find_multilingual_font_path() -> Optional[str]:
-    """Find a TTF font path that supports Arabic + Latin."""
-    # Reuse logic from wordcloud or check common paths
+    """Find the bundled Tajawal font or fallback to system fonts."""
+    # 1. Primary: Bundled font
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundled_font = os.path.join(base_dir, "static", "fonts", "Tajawal-Regular.ttf")
+    if os.path.exists(bundled_font):
+        return bundled_font
+
+    # 2. Secondary: Search common font directories
     font_dirs = [
         "/usr/share/fonts",
         "/usr/local/share/fonts",

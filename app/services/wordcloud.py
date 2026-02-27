@@ -90,47 +90,34 @@ def get_french_stopwords() -> set[str]:
 
 
 def find_multilingual_font() -> Optional[str]:
-    """Find a font that supports Arabic + Latin characters or download a solid fallback."""
-    # Search common font directories native to system
+    """Find the bundled Tajawal font or fallback to system fonts."""
+    # 1. Primary: Bundled font
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundled_font = os.path.join(base_dir, "static", "fonts", "Tajawal-Regular.ttf")
+    if os.path.exists(bundled_font):
+        return bundled_font
+
+    # 2. Secondary: Search common font directories native to system
     font_dirs = [
         "/usr/share/fonts",
         "/usr/local/share/fonts",
-        "/System/Library/Fonts",           # macOS
-        "/Library/Fonts",                   # macOS
-        os.path.expanduser("~/Library/Fonts"),  # macOS user
-        os.path.expanduser("~/.local/share/fonts"), 
-        "/app/data/fonts"                   # Docker fallback directory
+        "/System/Library/Fonts",
+        "/Library/Fonts",
+        os.path.expanduser("~/Library/Fonts"),
+        os.path.expanduser("~/.local/share/fonts")
     ]
     
-    # ONLY fonts known to support BOTH Arabic and Latin perfectly
-    target_fonts = ["tajawal", "cairo"]
-    
+    target_fonts = ["tajawal", "cairo", "notosansarabic"]
     for target in target_fonts:
         for font_dir in font_dirs:
             if not os.path.isdir(font_dir):
                 continue
             for root, dirs, files in os.walk(font_dir):
                 for f in files:
-                    f_lower = f.lower()
-                    if f.endswith(('.ttf', '.otf')) and target in f_lower:
+                    if f.lower().endswith(('.ttf', '.otf')) and target in f.lower():
                         return os.path.join(root, f)
-
-    # If we get here, no good multilingual font found. Let's auto-download Tajawal-Regular
-    print("No native multilingual font found. Downloading Tajawal-Regular...")
-    try:
-        font_dir = "/app/data/fonts"
-        if not os.path.exists(font_dir):
-            os.makedirs(font_dir, exist_ok=True)
-            
-        font_path = os.path.join(font_dir, "Tajawal-Regular.ttf")
-        if not os.path.exists(font_path):
-            tajawal_url = "https://github.com/googlefonts/tajawal/raw/master/fonts/ttf/Tajawal-Regular.ttf"
-            urllib.request.urlretrieve(tajawal_url, font_path)
-            print("Successfully downloaded Tajawal-Regular.ttf")
-        return font_path
-    except Exception as e:
-        print(f"Failed to download fallback font: {e}")
-        return None
+    
+    return None
 
 
 # Cache the font path at module load

@@ -32,12 +32,13 @@ def find_multilingual_font_path() -> Optional[str]:
         "/app/data/fonts"
     ]
     target_fonts = ["tajawal", "cairo", "dejavu", "notosans-regular", "notosansarabic"]
-    for font_dir in font_dirs:
-        if not os.path.isdir(font_dir): continue
-        for root, _, files in os.walk(font_dir):
-            for f in files:
-                if f.lower().endswith(('.ttf', '.otf')) and any(t in f.lower() for t in target_fonts):
-                    return os.path.join(root, f)
+    for target in target_fonts:
+        for font_dir in font_dirs:
+            if not os.path.isdir(font_dir): continue
+            for root, _, files in os.walk(font_dir):
+                for f in files:
+                    if f.lower().endswith(('.ttf', '.otf')) and target in f.lower():
+                        return os.path.join(root, f)
     return None
 
 # Register font if found

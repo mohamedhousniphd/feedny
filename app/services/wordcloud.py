@@ -105,14 +105,15 @@ def find_multilingual_font() -> Optional[str]:
     # Fonts known to support both Arabic and extended Latin well
     target_fonts = ["tajawal", "cairo", "dejavu", "notosans-regular", "notosansarabic"]
     
-    for font_dir in font_dirs:
-        if not os.path.isdir(font_dir):
-            continue
-        for root, dirs, files in os.walk(font_dir):
-            for f in files:
-                f_lower = f.lower()
-                if f.endswith(('.ttf', '.otf')) and any(t in f_lower for t in target_fonts):
-                    return os.path.join(root, f)
+    for target in target_fonts:
+        for font_dir in font_dirs:
+            if not os.path.isdir(font_dir):
+                continue
+            for root, dirs, files in os.walk(font_dir):
+                for f in files:
+                    f_lower = f.lower()
+                    if f.endswith(('.ttf', '.otf')) and target in f_lower:
+                        return os.path.join(root, f)
 
     # If we get here, no good multilingual font found. Let's auto-download Tajawal-Regular
     print("No native multilingual font found. Downloading Tajawal-Regular...")

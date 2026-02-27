@@ -7,6 +7,9 @@ from stopwordsiso import stopwords
 from wordcloud import WordCloud
 import matplotlib
 import matplotlib.pyplot as plt
+import urllib.request
+import arabic_reshaper
+from bidi.algorithm import get_display
 
 
 # Set backend to Agg to avoid display issues
@@ -19,14 +22,19 @@ def detect_has_arabic(text: str) -> bool:
     return bool(arabic_pattern.search(text))
 
 
-def wrap_arabic_words(text: str) -> str:
-    """
-    Wrap Arabic words with Unicode RTL control characters for proper display.
-    Uses Right-to-Left Isolate (U+2067) and Pop Directional Isolate (U+2069).
-    """
-    arabic_pattern = re.compile(r'([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]+)')
-    # Use chr() to safely embed unicode control characters
-    return arabic_pattern.sub(f"{chr(0x2067)}\\1{chr(0x2069)}", text)
+def process_arabic_word(word: str) -> str:
+    """Correctly shape and order Arabic words for display in PIL."""
+    if detect_has_arabic(word):
+        # Specific configuration tailored for basic WordCloud use
+        reshaper_config = {
+            'delete_harakat': True,
+            'delete_tatweel': True,
+            'support_ligatures': True,
+            'shift_harakat_position': False
+        }
+        reshaped = arabic_reshaper.ArabicReshaper(configuration=reshaper_config).reshape(word)
+        return get_display(reshaped)
+    return word
 
 
 def get_multilingual_stopwords() -> set[str]:
@@ -82,58 +90,46 @@ def get_french_stopwords() -> set[str]:
 
 
 def find_multilingual_font() -> Optional[str]:
-    """Find a font that supports Arabic + Latin characters."""
-    import subprocess
-    
-    # Priority list of fonts that support Arabic
-    font_names = [
-        "NotoSansArabic",
-        "NotoSans-Regular",
-        "Noto Sans",
-        "DejaVu Sans",
-    ]
-    
-    # Search common font directories
+    """Find a font that supports Arabic + Latin characters or download a solid fallback."""
+    # Search common font directories native to system
     font_dirs = [
         "/usr/share/fonts",
         "/usr/local/share/fonts",
         "/System/Library/Fonts",           # macOS
         "/Library/Fonts",                   # macOS
         os.path.expanduser("~/Library/Fonts"),  # macOS user
+        os.path.expanduser("~/.local/share/fonts"), 
+        "/app/data/fonts"                   # Docker fallback directory
     ]
     
-    for font_dir in font_dirs:
-        if not os.path.isdir(font_dir):
-            continue
-        for root, dirs, files in os.walk(font_dir):
-            for f in files:
-                if f.endswith(('.ttf', '.otf')):
-                    f_lower = f.lower()
-                    # Prefer Noto Sans Arabic specifically
-                    if 'notosansarabic' in f_lower and 'regular' in f_lower:
-                        return os.path.join(root, f)
+    # Fonts known to support both Arabic and extended Latin well
+    target_fonts = ["tajawal", "cairo", "notosansarabic", "notosans-regular"]
     
-    # Fallback: any Noto Sans font
     for font_dir in font_dirs:
         if not os.path.isdir(font_dir):
             continue
         for root, dirs, files in os.walk(font_dir):
             for f in files:
-                if f.endswith(('.ttf', '.otf')):
-                    f_lower = f.lower()
-                    if 'notosans' in f_lower and 'regular' in f_lower:
-                        return os.path.join(root, f)
-    
-    # Final fallback: DejaVu Sans (partial Arabic support)
-    for font_dir in font_dirs:
-        if not os.path.isdir(font_dir):
-            continue
-        for root, dirs, files in os.walk(font_dir):
-            for f in files:
-                if f.endswith('.ttf') and 'dejavu' in f.lower() and 'sans' in f.lower():
+                f_lower = f.lower()
+                if f.endswith(('.ttf', '.otf')) and any(t in f_lower for t in target_fonts):
                     return os.path.join(root, f)
-    
-    return None
+
+    # If we get here, no good multilingual font found. Let's auto-download Tajawal-Regular
+    print("No native multilingual font found. Downloading Tajawal-Regular...")
+    try:
+        font_dir = "/app/data/fonts"
+        if not os.path.exists(font_dir):
+            os.makedirs(font_dir, exist_ok=True)
+            
+        font_path = os.path.join(font_dir, "Tajawal-Regular.ttf")
+        if not os.path.exists(font_path):
+            tajawal_url = "https://github.com/googlefonts/tajawal/raw/master/fonts/ttf/Tajawal-Regular.ttf"
+            urllib.request.urlretrieve(tajawal_url, font_path)
+            print("Successfully downloaded Tajawal-Regular.ttf")
+        return font_path
+    except Exception as e:
+        print(f"Failed to download fallback font: {e}")
+        return None
 
 
 # Cache the font path at module load
@@ -164,34 +160,42 @@ def create_wordcloud(
     try:
         # Get multi-language stopwords
         stopwords_set = get_multilingual_stopwords()
-        
-        # Process Arabic text for RTL display
-        processed_text = text
-        if detect_has_arabic(text):
-            processed_text = wrap_arabic_words(text)
 
-        # Construct regex dynamically to avoid source encoding issues
-        # Arabic range: 0600-06FF, 0750-077F, 08A0-08FF
+        # Construct regex dynamically to safely extract words
         arabic_range = f"{chr(0x0600)}-{chr(0x06FF)}{chr(0x0750)}-{chr(0x077F)}{chr(0x08A0)}-{chr(0x08FF)}"
         regex_pattern = f"[\\w{arabic_range}']+"
 
-        # Create wordcloud with multi-language support
+        # Instead of directly feeding text, we process the text using WordCloud's default logic
+        # to extract words and frequencies.
+        wc_base = WordCloud(
+            stopwords=stopwords_set,
+            regexp=regex_pattern,
+            collocations=False
+        )
+        base_frequencies = wc_base.process_text(text)
+        
+        # Now we reshape/bidi only the extracted words, which handles right-to-left layout correctly
+        # and translates raw Arabic chars into presentation forms supported by the font.
+        reshaped_frequencies = {}
+        for word, freq in base_frequencies.items():
+            reshaped_word = process_arabic_word(word)
+            reshaped_frequencies[reshaped_word] = freq
+
+        # Create wordcloud with reshaped frequencies
         wordcloud = WordCloud(
             width=width,
             height=height,
             background_color='white',
             max_words=max_words,
-            stopwords=stopwords_set,
             colormap=colormap,
             prefer_horizontal=prefer_horizontal,
             relative_scaling=0.5,
             min_font_size=10,
             random_state=42,
-            font_path=_FONT_PATH,
-            regexp=regex_pattern
-        ).generate(processed_text)
+            font_path=_FONT_PATH
+        ).generate_from_frequencies(reshaped_frequencies)
 
-        # Get word frequencies
+        # Get word frequencies back (optional, but requested by API)
         word_frequencies = wordcloud.words_
 
         # Convert to base64 image

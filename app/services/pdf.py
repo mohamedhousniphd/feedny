@@ -1,5 +1,4 @@
-"""PDF Generation Service for Feedny Analysis Export."""
-
+import os
 import io
 import base64
 from datetime import datetime
@@ -13,8 +12,72 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image as PILImage
 
+import arabic_reshaper
+from bidi.algorithm import get_display
+# --- Font Handling ---
+
+def find_multilingual_font_path() -> Optional[str]:
+    """Find a TTF font path that supports Arabic + Latin."""
+    # Reuse logic from wordcloud or check common paths
+    font_dirs = [
+        "/usr/share/fonts",
+        "/usr/local/share/fonts",
+        "/System/Library/Fonts",
+        "/Library/Fonts",
+        os.path.expanduser("~/Library/Fonts"),
+        "/app/data/fonts"
+    ]
+    target_fonts = ["tajawal", "cairo", "notosansarabic", "notosans-regular"]
+    for font_dir in font_dirs:
+        if not os.path.isdir(font_dir): continue
+        for root, _, files in os.walk(font_dir):
+            for f in files:
+                if f.lower().endswith(('.ttf', '.otf')) and any(t in f.lower() for t in target_fonts):
+                    return os.path.join(root, f)
+    return None
+
+# Register font if found
+_FONT_PATH = find_multilingual_font_path()
+_FONT_NAME = "Helvetica" # Default fallback
+if _FONT_PATH:
+    try:
+        pdfmetrics.registerFont(TTFont('Multilingual', _FONT_PATH))
+        _FONT_NAME = 'Multilingual'
+    except Exception as e:
+        print(f"Error registering font: {e}")
+
+def process_multilingual_text(text: str) -> str:
+    """Shape Arabic text while preserving Latin text for ReportLab."""
+    if not text: return ""
+    
+    # Check if contains Arabic
+    if not any('\u0600' <= c <= '\u06FF' for c in text):
+        return text
+        
+    reshaper_config = {
+        'delete_harakat': False,
+        'support_ligatures': True,
+    }
+    reshaper = arabic_reshaper.ArabicReshaper(configuration=reshaper_config)
+    
+    # Process line by line to preserve layout
+    lines = text.split('\n')
+    processed_lines = []
+    for line in lines:
+        if not line.strip():
+            processed_lines.append(line)
+            continue
+        reshaped = reshaper.reshape(line)
+        bidi_text = get_display(reshaped)
+        processed_lines.append(bidi_text)
+        
+    return '\n'.join(processed_lines)
+
+# --- PDF Generation ---
 
 def create_analysis_pdf(
     wordcloud_image_base64: str,
@@ -59,7 +122,8 @@ def create_analysis_pdf(
         fontSize=18,
         textColor=colors.black,
         alignment=TA_CENTER,
-        spaceAfter=10
+        spaceAfter=10,
+        fontName=_FONT_NAME
     )
     
     date_style = ParagraphStyle(
@@ -68,7 +132,8 @@ def create_analysis_pdf(
         fontSize=10,
         textColor=colors.gray,
         alignment=TA_CENTER,
-        spaceAfter=5
+        spaceAfter=5,
+        fontName=_FONT_NAME
     )
     
     context_style = ParagraphStyle(
@@ -78,7 +143,7 @@ def create_analysis_pdf(
         textColor=colors.darkgray,
         alignment=TA_CENTER,
         spaceAfter=15,
-        fontName='Helvetica-Oblique'
+        fontName=_FONT_NAME # Changed from Helvetica-Oblique for better support
     )
     
     analysis_style = ParagraphStyle(
@@ -89,7 +154,8 @@ def create_analysis_pdf(
         alignment=TA_JUSTIFY,
         leading=14,
         spaceBefore=5,
-        spaceAfter=5
+        spaceAfter=5,
+        fontName=_FONT_NAME
     )
     
     section_heading = ParagraphStyle(
@@ -98,22 +164,23 @@ def create_analysis_pdf(
         fontSize=12,
         textColor=colors.black,
         spaceBefore=10,
-        spaceAfter=5
+        spaceAfter=5,
+        fontName=_FONT_NAME
     )
     
     # Build content
     story = []
     
     # Title
-    story.append(Paragraph(title, title_style))
+    story.append(Paragraph(process_multilingual_text(title), title_style))
     
     # Date
     date_str = datetime.now().strftime("%d/%m/%Y à %H:%M")
-    story.append(Paragraph(f"Généré le {date_str}", date_style))
+    story.append(Paragraph(process_multilingual_text(f"Généré le {date_str}"), date_style))
     
     # Context if provided
     if context:
-        story.append(Paragraph(f"Contexte : {context}", context_style))
+        story.append(Paragraph(process_multilingual_text(f"Contexte : {context}"), context_style))
     
     story.append(Spacer(1, 10))
     
@@ -156,7 +223,7 @@ def create_analysis_pdf(
     story.append(Spacer(1, 20))
     
     # Analysis Section
-    story.append(Paragraph("📊 Analyse IA", section_heading))
+    story.append(Paragraph(process_multilingual_text("📊 Analyse IA"), section_heading))
     
     # Format analysis text - split by sections
     for line in analysis_text.split('\n'):
@@ -166,11 +233,11 @@ def create_analysis_pdf(
         # Check if it's a heading
         if any(line.startswith(f"{i}.") for i in range(1, 10)) or \
            any(keyword in line.lower() for keyword in ['résumé', 'points positifs', 'points à améliorer', 'recommandations']):
-            story.append(Paragraph(line, section_heading))
+            story.append(Paragraph(process_multilingual_text(line), section_heading))
         else:
             # Clean up markdown formatting
             line = line.replace('**', '').replace('*', '')
-            story.append(Paragraph(line, analysis_style))
+            story.append(Paragraph(process_multilingual_text(line), analysis_style))
 
     
     # Build PDF

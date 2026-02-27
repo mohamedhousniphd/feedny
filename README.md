@@ -1,7 +1,7 @@
 # Rapport Technique de Projet de Fin d'Études : Plateforme Feedny
 ## Conception et Implémentation d'un Écosystème de Feedback Pédagogique Assisté par IA
 
-<!-- Dernière révision académique : 10 février 2026 -->
+<!-- Dernière révision académique : 27 février 2026 -->
 
 <div align="center">
 
@@ -32,8 +32,9 @@
 9. [Interface et Expérience Utilisateur (UX)](#8-interface-et-expérience-utilisateur-ux)
 10. [Infrastructures et Déploiement Industriel](#9-infrastructures-et-déploiement-industriel)
 11. [Résultats, Tests et Évaluation](#10-résultats-tests-et-évaluation)
-12. [Conclusion et Perspectives Académiques](#11-conclusion-et-perspectives-académiques)
-13. [Références et Annexes](#12-références-et-annexes)
+12. [Étude de Cas : Résolution des Défis Techniques](#12-étude-de-cas--résolution-des-défis-techniques)
+13. [Conclusion et Perspectives Académiques](#13-conclusion-et-perspectives-académiques)
+14. [Références et Annexes](#14-références-et-annexes)
 
 ---
 
@@ -300,13 +301,37 @@ graph TD
 
 ---
 
-## 11. Conclusion et Perspectives Académiques
+## 12. Étude de Cas : Résolution des Défis Techniques (Février 2026)
+
+L'évolution du projet en conditions réelles de déploiement a révélé plusieurs défis critiques liés à l'internationalisation et à la stabilité système. Cette section documente les solutions apportées.
+
+### 12.1 Le Défi du Rendu Multilingue (NLP & RTL)
+**Problématique** : Les nuages de mots affichaient initialement des lettres arabes déconnectées et à l'envers, ainsi que des rectangles vides (caractères manquants) pour le mélange Français/Arabe.
+**Solution Implémentée** : 
+- **Shaping & Bidi** : Intégration des bibliothèques `arabic-reshaper` pour la ligature des glyphes et `python-bidi` pour le réordonnancement visuel.
+- **Font Bundling** : Abandon de la dépendance aux polices système. Le projet embarque désormais sa propre police hybride (**Tajawal-Regular.ttf**) pour garantir un rendu parfait en toutes circonstances.
+
+### 12.2 Persistance du Cycle de Vie des Analyses
+**Problématique** : L'enseignant perdait le résultat de ses analyses lors du rafraîchissement de la page ou de nouvelles sessions.
+**Solution Implémentée** : 
+- Création d'une table `analysis_history` dédiée.
+- Implémentation d'une gestion complète du cycle de vie (Visualisation, Téléchargement PDF, Suppression) via une interface compacte et performante.
+
+### 12.3 Résilience et Défense du Système
+**Problématique** : Les erreurs de l'API DeepSeek ou du moteur WordCloud provoquaient des échecs 500 critiques.
+**Solution Implémentée** : 
+- Mise en place d'une architecture de **dégradation gracieuse** : si un module échoue (ex: Image), l'autre (ex: Texte) est quand même livré et sauvegardé.
+- Ajout de logs diagnostiques et de retours d'erreurs explicites vers le dashboard pour une meilleure transparence utilisateur.
+
+---
+
+## 13. Conclusion et Perspectives Académiques
 
 Le projet **Feedny** prouve que l'intégration intelligente de l'IA dans les outils de gestion de classe peut radicalement transformer la réactivité pédagogique. L'avenir du projet réside dans l'analyse prédictive et la recommandation automatique de ressources pédagogiques basées sur les lacunes identifiées par la plateforme.
 
 ---
 
-## 12. Références et Annexes
+## 14. Références et Annexes
 
 ### Bibliographie
 1. **Nelson Mandela** - *Education is the most powerful weapon...*

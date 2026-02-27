@@ -31,7 +31,7 @@ def find_multilingual_font_path() -> Optional[str]:
         os.path.expanduser("~/Library/Fonts"),
         "/app/data/fonts"
     ]
-    target_fonts = ["tajawal", "cairo", "dejavu", "notosans-regular", "notosansarabic"]
+    target_fonts = ["tajawal", "cairo"]
     for target in target_fonts:
         for font_dir in font_dirs:
             if not os.path.isdir(font_dir): continue

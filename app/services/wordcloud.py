@@ -102,8 +102,8 @@ def find_multilingual_font() -> Optional[str]:
         "/app/data/fonts"                   # Docker fallback directory
     ]
     
-    # Fonts known to support both Arabic and extended Latin well
-    target_fonts = ["tajawal", "cairo", "dejavu", "notosans-regular", "notosansarabic"]
+    # ONLY fonts known to support BOTH Arabic and Latin perfectly
+    target_fonts = ["tajawal", "cairo"]
     
     for target in target_fonts:
         for font_dir in font_dirs:
@@ -136,9 +136,11 @@ def find_multilingual_font() -> Optional[str]:
 # Cache the font path at module load
 _FONT_PATH = find_multilingual_font()
 if _FONT_PATH:
-    print(f"Wordcloud font: {_FONT_PATH}")
+    # Get just the filename for cleaner logging
+    font_name = os.path.basename(_FONT_PATH)
+    print(f"✅ Multilingual font loaded: {font_name} from {os.path.dirname(_FONT_PATH)}")
 else:
-    print("Warning: No multilingual font found, Arabic may render as squares")
+    print("❌ CRITICAL: No hybrid font found! Arabic/Latin MIX will fail.")
 
 
 def create_wordcloud(

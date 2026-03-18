@@ -51,13 +51,8 @@ from app.models import (
     FeedbackRequest,
     FeedbackResponse,
     FeedbackListResponse,
-    TeacherLoginRequest,
-    TeacherLoginResponse,
     AnalyzeRequest,
-    AnalyzeResponse,
-    StatusResponse,
-    ErrorResponse,
-    ImportFeedbackItem
+    StatusResponse
 )
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks

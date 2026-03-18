@@ -5,13 +5,13 @@ from datetime import datetime
 from typing import Optional
 
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.units import inch, cm
+from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+    SimpleDocTemplate, Paragraph, Spacer, Image
 )
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image as PILImage

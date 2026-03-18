@@ -193,11 +193,27 @@ def increment_device_feedback(device_id: str):
         conn.commit()
 
 
-def reset_database():
-    """Reset the database: delete all feedbacks and device limits."""
+def reset_database(teacher_id: int):
+    """Reset the database for a specific teacher: delete their feedbacks and update limits."""
     with get_db() as conn:
-        conn.execute("DELETE FROM feedbacks")
-        conn.execute("DELETE FROM device_limits")
+        cursor = conn.execute(
+            "SELECT device_id, COUNT(*) as count FROM feedbacks WHERE teacher_id = ? GROUP BY device_id",
+            (teacher_id,)
+        )
+        device_counts = cursor.fetchall()
+
+        conn.execute("DELETE FROM feedbacks WHERE teacher_id = ?", (teacher_id,))
+
+        for row in device_counts:
+            conn.execute(
+                """
+                UPDATE device_limits
+                SET feedback_count = MAX(0, feedback_count - ?)
+                WHERE device_id = ?
+                """,
+                (row["count"], row["device_id"])
+            )
+
         conn.commit()
 
 

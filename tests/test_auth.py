@@ -99,3 +99,12 @@ def test_decode_access_token_failure():
     payload = decode_access_token(invalid_token)
 
     assert payload is None
+
+def test_decode_expired_access_token():
+    """Test decoding an expired access token."""
+    data = {"sub": "testuser", "status": "expired"}
+    # Create a token that expired 10 minutes ago
+    token = create_access_token(data, expires_delta=timedelta(minutes=-10))
+
+    decoded = decode_access_token(token)
+    assert decoded is None

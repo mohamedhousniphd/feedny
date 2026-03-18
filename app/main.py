@@ -39,7 +39,6 @@ from app.database import (
     create_teacher,
     get_teacher_by_email,
     get_teacher_by_code,
-    get_teacher_by_id,
     deduct_credit,
     add_credits,
     update_teacher_password,

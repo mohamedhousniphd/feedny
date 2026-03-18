@@ -29,6 +29,7 @@ from app.database import (
     get_feedback_by_id,
     toggle_feedback_inclusion,
     get_feedbacks_by_ids,
+    get_feedbacks_by_ids_and_teacher,
     check_device_limit,
     increment_device_feedback,
     reset_database,
@@ -597,18 +598,31 @@ async def reset_database_endpoint(
 @app.get("/api/export/csv")
 async def export_csv(
     request: Request,
-    teacher: dict = Depends(get_current_teacher)
+    teacher: dict = Depends(get_current_teacher),
+    feedbacks: Optional[str] = Query(None)
 ):
     """Export feedbacks as CSV (teacher only)."""
     import pandas as pd
 
-    feedbacks = get_all_feedbacks(teacher['id'])
+    if feedbacks:
+        try:
+            feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiants de feedback invalides (doivent être des nombres)")
 
-    if not feedbacks:
+        if not feedback_ids:
+            raise HTTPException(status_code=400, detail="Identifiants de feedback invalides")
+
+        # Optimize fetch: query specific IDs and ensure teacher ownership directly in SQLite
+        feedbacks_data = get_feedbacks_by_ids_and_teacher(feedback_ids, teacher['id'])
+    else:
+        feedbacks_data = get_all_feedbacks(teacher['id'])
+
+    if not feedbacks_data:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
 
     # Create DataFrame
-    df = pd.DataFrame(feedbacks)
+    df = pd.DataFrame(feedbacks_data)
     # Filter columns to export
     columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
     # Only keep columns that exist

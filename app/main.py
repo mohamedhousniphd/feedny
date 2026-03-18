@@ -81,6 +81,18 @@ app.add_middleware(
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
+# Template caching for performance
+template_cache = {}
+
+async def get_template(filepath: str) -> str:
+    """Async file reader with in-memory caching."""
+    if filepath not in template_cache:
+        def read_file():
+            with open(filepath, "r", encoding="utf-8") as f:
+                return f.read()
+        template_cache[filepath] = await asyncio.to_thread(read_file)
+    return template_cache[filepath]
+
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -151,8 +163,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-        with open("app/static/student_landing.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        html_content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=html_content)
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -165,8 +177,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
-    with open("app/static/index.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html = await get_template("app/static/index.html")
 
     # Inject data (handle optional spaces in tags)
     import re

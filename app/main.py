@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 import asyncio
+import html
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -166,20 +167,20 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     can_submit, _ = check_device_limit(device_id)
 
     with open("app/static/index.html", "r", encoding="utf-8") as f:
-        html = f.read()
+        html_content = f.read()
 
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
     question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     
-    html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
-    html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
-    html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
-    html = html.replace('Feedny', f"Afeedny - {teacher['name']}") # Personalize header
-    html = html.replace('Afeedny', f"Afeedny - {teacher['name']}") # Handle rebranded name
+    html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(device_id), html_content)
+    html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
+    html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(question), html_content)
+    html_content = html_content.replace('Feedny', f"Afeedny - {html.escape(teacher['name'])}") # Personalize header
+    html_content = html_content.replace('Afeedny', f"Afeedny - {html.escape(teacher['name'])}") # Handle rebranded name
 
-    response = Response(content=html, media_type="text/html")
+    response = Response(content=html_content, media_type="text/html")
 
     # Set device ID cookie if not present
     if not request.cookies.get("device_id"):
@@ -234,17 +235,17 @@ async def teacher_dashboard(request: Request):
         return Response(status_code=302, headers={"Location": "/login"})
 
     with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
-        html = f.read()
+        html_content = f.read()
     
     # Inject teacher info
-    html = html.replace('{{name}}', teacher['name'])
-    html = html.replace('{{unique_code}}', teacher['unique_code'])
+    html_content = html_content.replace('{{name}}', html.escape(teacher['name']))
+    html_content = html_content.replace('{{unique_code}}', html.escape(teacher['unique_code']))
     
     # Handle credits display
     credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
-    html = html.replace('{{credits}}', credits_display)
+    html_content = html_content.replace('{{credits}}', credits_display)
 
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html_content)
 
 
 # Auth API
@@ -687,10 +688,10 @@ async def reset_password_page(token: str):
     # We can reuse forgot_password.html layout or create new
     # Let's assume we create 'reset_password.html'
     with open("app/static/reset_password.html", "r", encoding="utf-8") as f:
-        html = f.read()
+        html_content = f.read()
     # Inject token into JS
-    html = html.replace('{{token}}', token)
-    return HTMLResponse(content=html)
+    html_content = html_content.replace('{{token}}', html.escape(token))
+    return HTMLResponse(content=html_content)
 
 
 @app.post("/api/auth/reset-password")

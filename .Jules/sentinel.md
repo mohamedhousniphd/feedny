@@ -1,0 +1,1 @@
+Learnings regarding XSS prevention: Always use html.escape() when injecting dynamic data into HTML strings. Also, rename the local 'html' variable to something like 'html_content' to avoid shadowing the built-in 'html' module.

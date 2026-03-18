@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
@@ -594,19 +595,8 @@ async def reset_database_endpoint(
         raise HTTPException(status_code=403, detail="Action réservée aux administrateurs")
 
 
-@app.get("/api/export/csv")
-async def export_csv(
-    request: Request,
-    teacher: dict = Depends(get_current_teacher)
-):
-    """Export feedbacks as CSV (teacher only)."""
+def _generate_csv(feedbacks: list) -> str:
     import pandas as pd
-
-    feedbacks = get_all_feedbacks(teacher['id'])
-
-    if not feedbacks:
-        raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
-
     # Create DataFrame
     df = pd.DataFrame(feedbacks)
     # Filter columns to export
@@ -615,7 +605,21 @@ async def export_csv(
     df = df[[c for c in columns if c in df.columns]]
 
     # Convert to CSV with UTF-8 BOM for Excel compatibility
-    csv_buffer = df.to_csv(index=False, encoding="utf-8-sig")
+    return df.to_csv(index=False, encoding="utf-8-sig")
+
+@app.get("/api/export/csv")
+async def export_csv(
+    request: Request,
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Export feedbacks as CSV (teacher only)."""
+    feedbacks = get_all_feedbacks(teacher['id'])
+
+    if not feedbacks:
+        raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
+
+    # Run blocking pandas CPU/IO operations in a threadpool
+    csv_buffer = await run_in_threadpool(_generate_csv, feedbacks)
 
     return Response(
         content=csv_buffer,

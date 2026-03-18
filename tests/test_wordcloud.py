@@ -49,26 +49,52 @@ def test_process_arabic_word(mock_get_display, mock_reshaper_class):
     mock_reshaper_class.assert_not_called()
     mock_get_display.assert_not_called()
 
-def test_get_multilingual_stopwords():
-    # conftest mocks the stopwords package to throw exception so this tests the fallback
-    stopwords = get_multilingual_stopwords()
+def test_get_multilingual_stopwords_happy_path():
+    """Test get_multilingual_stopwords when stopwordsiso returns expected sets."""
+    def mock_stopwords(lang):
+        if lang == 'fr':
+            return {'le', 'la'}
+        elif lang == 'en':
+            return {'the', 'a'}
+        elif lang == 'ar':
+            return {'من', 'إلى'}
+        return set()
 
-    # Check if some French words are in
-    assert 'le' in stopwords
-    assert 'la' in stopwords
+    with patch('app.services.wordcloud.stopwords', side_effect=mock_stopwords):
+        stopwords = get_multilingual_stopwords()
+        assert 'le' in stopwords
+        assert 'la' in stopwords
+        assert 'the' in stopwords
+        assert 'a' in stopwords
+        assert 'من' in stopwords
+        assert 'إلى' in stopwords
 
-    # Check if some English words are in
-    assert 'the' in stopwords
-    assert 'a' in stopwords
+def test_get_multilingual_stopwords_fallback_path():
+    """Test get_multilingual_stopwords fallback paths when stopwordsiso raises an Exception."""
+    def mock_stopwords_raise(lang):
+        raise Exception(f"Mock exception for {lang}")
 
-    # Check if some Arabic words are in
-    assert 'من' in stopwords
-    assert 'إلى' in stopwords
+    with patch('app.services.wordcloud.stopwords', side_effect=mock_stopwords_raise):
+        stopwords = get_multilingual_stopwords()
+        # Check some French fallback words
+        assert 'le' in stopwords
+        assert 'la' in stopwords
+        assert 'les' in stopwords
+        # Check some English fallback words
+        assert 'the' in stopwords
+        assert 'a' in stopwords
+        assert 'an' in stopwords
+        # Check some Arabic fallback words
+        assert 'من' in stopwords
+        assert 'إلى' in stopwords
+        assert 'على' in stopwords
 
 def test_get_french_stopwords():
-    stopwords1 = get_multilingual_stopwords()
-    stopwords2 = get_french_stopwords()
-    assert stopwords1 == stopwords2
+    # Use patch to ensure both functions get the same mocked environment
+    with patch('app.services.wordcloud.stopwords', return_value={'test'}):
+        stopwords1 = get_multilingual_stopwords()
+        stopwords2 = get_french_stopwords()
+        assert stopwords1 == stopwords2
 
 @patch('os.path.exists')
 def test_find_multilingual_font_primary(mock_exists):

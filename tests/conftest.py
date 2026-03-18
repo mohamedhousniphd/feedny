@@ -22,6 +22,10 @@ if 'stopwordsiso' in sys.modules and isinstance(sys.modules['stopwordsiso'], Mag
         return [] # Return empty list by default for mocks
     sys.modules['stopwordsiso'].stopwords = stopwords_mock
 
+# Special handling for matplotlib.use
+if 'matplotlib' in sys.modules and isinstance(sys.modules['matplotlib'], MagicMock):
+    sys.modules['matplotlib'].use = MagicMock()
+
 # Mock passlib if missing
 try:
     import passlib

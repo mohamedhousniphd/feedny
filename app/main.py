@@ -482,25 +482,32 @@ async def analyze_feedbacks_endpoint(
         feedback_contents = [fb["content"] for fb in feedbacks]
         feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-        # Step 1: Generate wordcloud (synchronous)
-        wordcloud_base64 = ""
-        try:
-            result = create_wordcloud(feedbacks_text)
-            if result and result[0]:
-                wordcloud_base64 = result[0]
-        except Exception as e:
-            print(f"Wordcloud error (non-fatal): {e}")
+        # Generate wordcloud and AI Analysis concurrently
+        wordcloud_task = asyncio.to_thread(create_wordcloud, feedbacks_text)
+        analyze_task = analyze_feedbacks(
+            feedbacks=feedback_contents,
+            context=request_data.context,
+            emotions=feedback_emotions
+        )
 
-        # Step 2: AI Analysis via DeepSeek
-        summary = ""
         try:
-            summary = await analyze_feedbacks(
-                feedbacks=feedback_contents,
-                context=request_data.context,
-                emotions=feedback_emotions
+            wordcloud_result, summary = await asyncio.gather(
+                wordcloud_task, analyze_task, return_exceptions=True
             )
         except Exception as e:
-            print(f"DeepSeek error (non-fatal): {e}")
+            print(f"Gather error (non-fatal): {e}")
+            wordcloud_result = e
+            summary = e
+
+        wordcloud_base64 = ""
+        if isinstance(wordcloud_result, Exception):
+            print(f"Wordcloud error (non-fatal): {wordcloud_result}")
+        elif wordcloud_result and wordcloud_result[0]:
+            wordcloud_base64 = wordcloud_result[0]
+
+        if isinstance(summary, Exception):
+            print(f"DeepSeek error (non-fatal): {summary}")
+            summary = ""
 
         if not summary:
             summary = "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."

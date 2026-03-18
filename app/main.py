@@ -32,7 +32,6 @@ from app.database import (
     check_device_limit,
     increment_device_feedback,
     reset_database,
-    get_feedback_stats,
     import_feedbacks,
     get_setting,
     set_setting,

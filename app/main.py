@@ -597,18 +597,33 @@ async def reset_database_endpoint(
 @app.get("/api/export/csv")
 async def export_csv(
     request: Request,
-    teacher: dict = Depends(get_current_teacher)
+    teacher: dict = Depends(get_current_teacher),
+    feedbacks: str = Query(None)  # comma-separated IDs
 ):
-    """Export feedbacks as CSV (teacher only)."""
+    """Export selected feedbacks as CSV."""
     import pandas as pd
 
-    feedbacks = get_all_feedbacks(teacher['id'])
+    if feedbacks:
+        try:
+            feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format d'IDs invalide")
 
-    if not feedbacks:
+        if not feedback_ids:
+            raise HTTPException(status_code=400, detail="Aucun ID de feedback fourni")
+
+        # Optimization: Query only requested IDs (O(M)) instead of all (O(N))
+        selected_feedbacks = get_feedbacks_by_ids(feedback_ids)
+        # Ensure they belong to the teacher
+        feedbacks_data = [fb for fb in selected_feedbacks if fb.get('teacher_id') == teacher['id']]
+    else:
+        feedbacks_data = get_all_feedbacks(teacher['id'])
+
+    if not feedbacks_data:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
 
     # Create DataFrame
-    df = pd.DataFrame(feedbacks)
+    df = pd.DataFrame(feedbacks_data)
     # Filter columns to export
     columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
     # Only keep columns that exist

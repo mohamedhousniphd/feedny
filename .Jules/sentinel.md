@@ -10,9 +10,10 @@
 # Security Learnings
 
 ## XSS (Cross-Site Scripting)
-- Always sanitize dynamic variables injected into HTML templates using `html.escape()` to prevent Reflected Cross-Site Scripting (XSS).
+- Always sanitize dynamic variables injected into HTML templates using `html.escape()` to prevent Reflected and Stored Cross-Site Scripting (XSS).
 - Specifically, for Reflected XSS, ensure any user-provided data such as tokens and query parameters are properly sanitized before replacement.
 - Always cast variables to string prior to escaping: `html.escape(str(variable))`.
+- It is imperative that all properties set by the user remain escaped when displayed in any HTML structure to prevent script injections.
 
 ## Shadowing Built-in Modules
 - When naming variables in your code, specifically dealing with HTML templates, avoid using the variable name `html`. This name shadows the built-in `html` library in Python (`import html`). Use names like `html_content` instead to avoid shadowing built-in functions.

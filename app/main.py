@@ -1,10 +1,12 @@
 import os
 import sys
 import uuid
+import html
 from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,7 +59,8 @@ from app.models import (
     AnalyzeResponse,
     StatusResponse,
     ErrorResponse,
-    ImportFeedbackItem
+    ImportFeedbackItem,
+    ReceiptApprovalRequest
 )
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks
@@ -80,6 +83,22 @@ app.add_middleware(
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+
+# Template cache
+template_cache = {}
+
+async def get_template(filepath: str) -> str:
+    """Read file content with in-memory caching and async support."""
+    if filepath in template_cache:
+        return template_cache[filepath]
+
+    def read_file_sync():
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+
+    content = await asyncio.to_thread(read_file_sync)
+    template_cache[filepath] = content
+    return content
 
 
 # Initialize database on startup
@@ -151,8 +170,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-        with open("app/static/student_landing.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=content)
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -165,21 +184,19 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
-    with open("app/static/index.html", "r", encoding="utf-8") as f:
-        html = f.read()
-
+    html_content = await get_template("app/static/index.html")
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
     question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     
-    html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
-    html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
-    html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
-    html = html.replace('Feedny', f"Afeedny - {teacher['name']}") # Personalize header
-    html = html.replace('Afeedny', f"Afeedny - {teacher['name']}") # Handle rebranded name
+    html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(device_id), html_content)
+    html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
+    html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(question), html_content)
+    html_content = html_content.replace('Feedny', f"Afeedny - {html.escape(teacher['name'])}") # Personalize header
+    html_content = html_content.replace('Afeedny', f"Afeedny - {html.escape(teacher['name'])}") # Handle rebranded name
 
-    response = Response(content=html, media_type="text/html")
+    response = Response(content=html_content, media_type="text/html")
 
     # Set device ID cookie if not present
     if not request.cookies.get("device_id"):
@@ -188,7 +205,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
             value=device_id,
             max_age=365*24*60*60,
             httponly=True,
-            samesite="lax"
+            secure=True,
+            samesite="strict"
         )
     
     # Set teacher code cookie for convenience
@@ -197,7 +215,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         value=code.upper(),
         max_age=30*24*60*60, # 30 days
         httponly=True,
-        samesite="lax"
+        secure=True,
+        samesite="strict"
     )
 
     return response
@@ -206,22 +225,22 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
     """Login page."""
-    with open("app/static/login.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/login.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page():
     """Forgot password page."""
-    with open("app/static/forgot_password.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/forgot_password.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
-    with open("app/static/signup.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/signup.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/teacher", response_class=HTMLResponse)
@@ -233,18 +252,16 @@ async def teacher_dashboard(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
-        html = f.read()
-    
+    html_content = await get_template("app/static/dashboard.html")
     # Inject teacher info
-    html = html.replace('{{name}}', teacher['name'])
-    html = html.replace('{{unique_code}}', teacher['unique_code'])
+    html_content = html_content.replace('{{name}}', html.escape(teacher['name']))
+    html_content = html_content.replace('{{unique_code}}', html.escape(teacher['unique_code']))
     
     # Handle credits display
     credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
-    html = html.replace('{{credits}}', credits_display)
+    html_content = html_content.replace('{{credits}}', credits_display)
 
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html_content)
 
 
 # Auth API
@@ -300,8 +317,9 @@ async def login(username: str = Form(...), password: str = Form(...), response: 
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax"
+        samesite="strict"
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
@@ -351,7 +369,8 @@ async def submit_feedback(
         value=device_id,
         max_age=365*24*60*60,
         httponly=True,
-        samesite="lax"
+        secure=True,
+        samesite="strict"
     )
 
     return FeedbackResponse(**feedback)
@@ -482,29 +501,33 @@ async def analyze_feedbacks_endpoint(
         feedback_contents = [fb["content"] for fb in feedbacks]
         feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-        # Step 1: Generate wordcloud (synchronous)
-        wordcloud_base64 = ""
-        try:
-            result = create_wordcloud(feedbacks_text)
-            if result and result[0]:
-                wordcloud_base64 = result[0]
-        except Exception as e:
-            print(f"Wordcloud error (non-fatal): {e}")
+        # ⚡ BOLT OPTIMIZATION: Run WordCloud (CPU-bound in threadpool) and DeepSeek (I/O-bound) concurrently.
+        async def generate_wordcloud_task():
+            try:
+                from fastapi.concurrency import run_in_threadpool
+                result = await run_in_threadpool(create_wordcloud, feedbacks_text)
+                if result and result[0]:
+                    return result[0]
+            except Exception as e:
+                print(f"Wordcloud error (non-fatal): {e}")
+            return ""
 
-        # Step 2: AI Analysis via DeepSeek
-        summary = ""
-        try:
-            summary = await analyze_feedbacks(
-                feedbacks=feedback_contents,
-                context=request_data.context,
-                emotions=feedback_emotions
-            )
-        except Exception as e:
-            print(f"DeepSeek error (non-fatal): {e}")
+        async def analyze_feedbacks_task():
+            try:
+                summary = await analyze_feedbacks(
+                    feedbacks=feedback_contents,
+                    context=request_data.context,
+                    emotions=feedback_emotions
+                )
+                return summary if summary else "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
+            except Exception as e:
+                print(f"DeepSeek error (non-fatal): {e}")
+                return "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
 
-        if not summary:
-            summary = "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
-        
+        wordcloud_base64, summary = await asyncio.gather(
+            generate_wordcloud_task(),
+            analyze_feedbacks_task()
+        )
         # Deduct credit if not admin
         if not teacher.get('is_admin'):
             deduct_credit(teacher['id'])
@@ -686,11 +709,9 @@ async def reset_password_page(token: str):
     """Serve reset password page."""
     # We can reuse forgot_password.html layout or create new
     # Let's assume we create 'reset_password.html'
-    with open("app/static/reset_password.html", "r", encoding="utf-8") as f:
-        html = f.read()
-    # Inject token into JS
-    html = html.replace('{{token}}', token)
-    return HTMLResponse(content=html)
+    html_content = await get_template("app/static/reset_password.html")    # Inject token into JS
+    html_content = html_content.replace('{{token}}', html.escape(token))
+    return HTMLResponse(content=html_content)
 
 
 @app.post("/api/auth/reset-password")
@@ -781,6 +802,7 @@ async def list_receipts(
 @app.post("/api/admin/receipts/{receipt_id}/approve")
 async def approve_receipt(
     receipt_id: int,
+    data: ReceiptApprovalRequest = Body(...),
     teacher: dict = Depends(get_current_teacher)
 ):
     """Approve a receipt and add credits (Admin only)."""
@@ -796,14 +818,13 @@ async def approve_receipt(
     if receipt['status'] == 'approved':
         return {"status": "success", "message": "Déjà approuvé"}
         
-    # Approve and add credits (e.g., 5 credits per valid payment)
-    # TODO: Make credit amount configurable or part of the request
-    CREDITS_PER_PAYMENT = 10 
+    # Approve and add credits
+    credits_to_add = data.amount
     
     update_receipt_status(receipt_id, 'approved')
-    add_credits(receipt['teacher_id'], CREDITS_PER_PAYMENT)
+    add_credits(receipt['teacher_id'], credits_to_add)
     
-    return {"status": "success", "message": f"Reçu validé, {CREDITS_PER_PAYMENT} crédits ajoutés"}
+    return {"status": "success", "message": f"Reçu validé, {credits_to_add} crédits ajoutés"}
 
 
 @app.post("/api/admin/receipts/{receipt_id}/reject")
@@ -884,8 +905,8 @@ async def admin_page(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/admin.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/admin.html")
+    return HTMLResponse(content=content)
 
 
 class CreditUpdate(FeedbackRequest.__base__):
@@ -960,8 +981,9 @@ async def export_pdf(
         if not wordcloud_image or not analysis_text:
             raise HTTPException(status_code=400, detail="Données manquantes pour générer le PDF")
 
-        # Generate PDF
-        pdf_bytes = create_analysis_pdf(
+        # Generate PDF (offloaded to threadpool)
+        pdf_bytes = await run_in_threadpool(
+            create_analysis_pdf,
             wordcloud_image_base64=wordcloud_image,
             analysis_text=analysis_text,
             context=context
@@ -981,6 +1003,6 @@ async def export_pdf(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, proxy_headers=True, forwarded_allow_ips="*")
 
 

@@ -1,0 +1,3 @@
+## 2024-05-24 - Icon-only buttons accessibility pattern
+**Learning:** Found an icon-only button (edit code button) using only an emoji `✏️` without `aria-label` or `aria-hidden` tags. This creates a confusing experience for screen readers. This seems to be a common pattern in this app's static HTML pages.
+**Action:** Always verify that buttons containing only icons/emojis include `aria-label` with descriptive text and wrap the visual icon in `<span aria-hidden="true">`.

@@ -4,7 +4,7 @@ python-multipart==0.0.6
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
-wordcloud==1.9.2
+wordcloud
 matplotlib==3.8.2
 stopwordsiso==0.6.1
 pandas==2.1.3

@@ -1,17 +1,15 @@
+```python
 import html
 import os
 import sys
-import html
 import uuid
-import html
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile, Cookie, Query
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
@@ -53,6 +51,7 @@ from app.database import (
     save_analysis,
     get_analysis_history
 )
+from app.services.analysis import generate_analysis_content
 from app.models import (
     FeedbackRequest,
     FeedbackResponse,
@@ -66,10 +65,6 @@ from app.models import (
     ImportFeedbackItem,
     ReceiptApprovalRequest
 )
-from app.services.wordcloud import create_wordcloud
-from app.services.deepseek import analyze_feedbacks
-from datetime import timedelta
-from fastapi import Cookie, Query
 
 # Initialize FastAPI app
 app = FastAPI(title="Feedny", version="1.0.0")
@@ -504,42 +499,12 @@ async def analyze_feedbacks_endpoint(
             if fb.get('teacher_id') and fb['teacher_id'] != teacher['id']:
                 raise HTTPException(status_code=403, detail="Accès non autorisé à certains feedbacks")
 
-        # Extract content and emotions
-        feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
-        feedback_contents = [fb["content"] for fb in feedbacks]
-        feedback_emotions = [fb.get("emotion") for fb in feedbacks]
-
-        # ⚡ BOLT OPTIMIZATION: Run WordCloud (CPU-bound in threadpool) and DeepSeek (I/O-bound) concurrently.
-        # Impact: Reduces total analysis time by running the ~2s wordcloud generation
-        # simultaneously with the ~3s LLM API call, saving ~40% overall time.
-        async def generate_wordcloud_task():
-            try:
-                from fastapi.concurrency import run_in_threadpool
-                # Use threadpool to prevent the synchronous CPU-bound task from blocking the event loop
-                result = await run_in_threadpool(create_wordcloud, feedbacks_text)
-                if result and result[0]:
-                    return result[0]
-            except Exception as e:
-                print(f"Wordcloud error (non-fatal): {e}")
-            return ""
-
-        async def analyze_feedbacks_task():
-            try:
-                summary = await analyze_feedbacks(
-                    feedbacks=feedback_contents,
-                    context=request_data.context,
-                    emotions=feedback_emotions
-                )
-                return summary if summary else "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
-            except Exception as e:
-                print(f"DeepSeek error (non-fatal): {e}")
-                return "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
-
-        # Execute both tasks concurrently
-        wordcloud_base64, summary = await asyncio.gather(
-            generate_wordcloud_task(),
-            analyze_feedbacks_task()
+        # Core feedback analysis and processing logic extracted to service
+        summary, wordcloud_base64 = await generate_analysis_content(
+            feedbacks=feedbacks,
+            context=request_data.context
         )
+        
         # Deduct credit if not admin
         if not teacher.get('is_admin'):
             deduct_credit(teacher['id'])

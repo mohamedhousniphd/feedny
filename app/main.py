@@ -1,6 +1,8 @@
 import os
 import sys
 import uuid
+import html
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -9,8 +11,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
-
-import asyncio
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -139,6 +139,18 @@ async def get_current_teacher(request: Request) -> dict:
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Template caching
+template_cache = {}
+
+async def get_template(path: str) -> str:
+    """Read template from disk using a thread pool and cache it in memory."""
+    if path not in template_cache:
+        def _read_file():
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        template_cache[path] = await asyncio.to_thread(_read_file)
+    return template_cache[path]
+
 
 # Routes
 
@@ -151,8 +163,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-        with open("app/static/student_landing.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        html_content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=html_content)
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -165,21 +177,21 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
-    with open("app/static/index.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html_content = await get_template("app/static/index.html")
 
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
     question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     
-    html = re.sub(r'\{\{\s*device_id\s*\}\}', device_id, html)
-    html = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html)
-    html = re.sub(r'\{\{\s*question\s*\}\}', question, html)
-    html = html.replace('Feedny', f"Afeedny - {teacher['name']}") # Personalize header
-    html = html.replace('Afeedny', f"Afeedny - {teacher['name']}") # Handle rebranded name
+    html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(device_id), html_content)
+    html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
+    html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(question), html_content)
+    escaped_teacher_name = html.escape(teacher['name'])
+    html_content = html_content.replace('Feedny', f"Afeedny - {escaped_teacher_name}") # Personalize header
+    html_content = html_content.replace('Afeedny', f"Afeedny - {escaped_teacher_name}") # Handle rebranded name
 
-    response = Response(content=html, media_type="text/html")
+    response = Response(content=html_content, media_type="text/html")
 
     # Set device ID cookie if not present
     if not request.cookies.get("device_id"):
@@ -206,22 +218,22 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
     """Login page."""
-    with open("app/static/login.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    html_content = await get_template("app/static/login.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page():
     """Forgot password page."""
-    with open("app/static/forgot_password.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    html_content = await get_template("app/static/forgot_password.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
-    with open("app/static/signup.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    html_content = await get_template("app/static/signup.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/teacher", response_class=HTMLResponse)
@@ -233,18 +245,17 @@ async def teacher_dashboard(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html_content = await get_template("app/static/dashboard.html")
     
     # Inject teacher info
-    html = html.replace('{{name}}', teacher['name'])
-    html = html.replace('{{unique_code}}', teacher['unique_code'])
+    html_content = html_content.replace('{{name}}', html.escape(teacher['name']))
+    html_content = html_content.replace('{{unique_code}}', html.escape(teacher['unique_code']))
     
     # Handle credits display
     credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
-    html = html.replace('{{credits}}', credits_display)
+    html_content = html_content.replace('{{credits}}', html.escape(credits_display))
 
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html_content)
 
 
 # Auth API
@@ -686,11 +697,10 @@ async def reset_password_page(token: str):
     """Serve reset password page."""
     # We can reuse forgot_password.html layout or create new
     # Let's assume we create 'reset_password.html'
-    with open("app/static/reset_password.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html_content = await get_template("app/static/reset_password.html")
     # Inject token into JS
-    html = html.replace('{{token}}', token)
-    return HTMLResponse(content=html)
+    html_content = html_content.replace('{{token}}', html.escape(token))
+    return HTMLResponse(content=html_content)
 
 
 @app.post("/api/auth/reset-password")
@@ -884,8 +894,8 @@ async def admin_page(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/admin.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    html_content = await get_template("app/static/admin.html")
+    return HTMLResponse(content=html_content)
 
 
 class CreditUpdate(FeedbackRequest.__base__):

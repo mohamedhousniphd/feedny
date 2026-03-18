@@ -58,3 +58,7 @@ class ImportFeedbackItem(BaseModel):
     created_at: Optional[datetime] = None
     included_in_analysis: Optional[bool] = False
     emotion: Optional[int] = Field(None, ge=1, le=10)
+
+
+class ReceiptApprovalRequest(BaseModel):
+    amount: int = Field(10, ge=1, description="Number of credits to add")

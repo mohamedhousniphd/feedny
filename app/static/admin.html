@@ -206,11 +206,29 @@
         }
 
         async function approveReceipt(id) {
-            if (!confirm('Valider ce paiement et ajouter 10 crédits ?')) return;
+            const amount = prompt('Nombre de crédits à ajouter :', '10');
+            if (amount === null) return;
+
+            const parsedAmount = parseInt(amount);
+            if (isNaN(parsedAmount) || parsedAmount <= 0) {
+                alert('Veuillez entrer un nombre valide supérieur à 0');
+                return;
+            }
+
+            if (!confirm(`Valider ce paiement et ajouter ${parsedAmount} crédits ?`)) return;
             try {
-                const response = await fetch(`/api/admin/receipts/${id}/approve`, { method: 'POST' });
-                if (response.ok) loadReceipts();
-            } catch (e) { alert('Erreur'); }
+                const response = await fetch(`/api/admin/receipts/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: parsedAmount })
+                });
+                if (response.ok) {
+                    loadReceipts();
+                } else {
+                    const error = await response.json();
+                    alert('Erreur: ' + (error.detail || 'Inconnue'));
+                }
+            } catch (e) { alert('Erreur de connexion'); }
         }
 
         async function rejectReceipt(id) {

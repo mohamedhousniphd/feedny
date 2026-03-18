@@ -57,7 +57,8 @@ from app.models import (
     AnalyzeResponse,
     StatusResponse,
     ErrorResponse,
-    ImportFeedbackItem
+    ImportFeedbackItem,
+    ReceiptApprovalRequest
 )
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks
@@ -781,6 +782,7 @@ async def list_receipts(
 @app.post("/api/admin/receipts/{receipt_id}/approve")
 async def approve_receipt(
     receipt_id: int,
+    data: ReceiptApprovalRequest = Body(...),
     teacher: dict = Depends(get_current_teacher)
 ):
     """Approve a receipt and add credits (Admin only)."""
@@ -796,14 +798,13 @@ async def approve_receipt(
     if receipt['status'] == 'approved':
         return {"status": "success", "message": "Déjà approuvé"}
         
-    # Approve and add credits (e.g., 5 credits per valid payment)
-    # TODO: Make credit amount configurable or part of the request
-    CREDITS_PER_PAYMENT = 10 
+    # Approve and add credits
+    credits_to_add = data.amount
     
     update_receipt_status(receipt_id, 'approved')
-    add_credits(receipt['teacher_id'], CREDITS_PER_PAYMENT)
+    add_credits(receipt['teacher_id'], credits_to_add)
     
-    return {"status": "success", "message": f"Reçu validé, {CREDITS_PER_PAYMENT} crédits ajoutés"}
+    return {"status": "success", "message": f"Reçu validé, {credits_to_add} crédits ajoutés"}
 
 
 @app.post("/api/admin/receipts/{receipt_id}/reject")

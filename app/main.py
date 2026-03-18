@@ -193,11 +193,12 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     # Fetch teacher's specific question
     question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
     
-    html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(device_id), html_content)
+    html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(str(device_id)), html_content)
     html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
-    html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(question), html_content)
-    html_content = html_content.replace('Feedny', f"Afeedny - {html.escape(teacher['name'])}") # Personalize header
-    html_content = html_content.replace('Afeedny', f"Afeedny - {html.escape(teacher['name'])}") # Handle rebranded name
+    html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(str(question)), html_content)
+    # Personalize header with escaping
+    html_content = html_content.replace('Feedny', f"Afeedny - {html.escape(str(teacher['name']))}")
+    html_content = html_content.replace('Afeedny', f"Afeedny - {html.escape(str(teacher['name']))}")
 
     response = Response(content=html_content, media_type="text/html")
 
@@ -257,12 +258,12 @@ async def teacher_dashboard(request: Request):
 
     html_content = await get_template("app/static/dashboard.html")
     # Inject teacher info
-    html_content = html_content.replace('{{name}}', html.escape(teacher['name']))
-    html_content = html_content.replace('{{unique_code}}', html.escape(teacher['unique_code']))
+    html_content = html_content.replace('{{name}}', html.escape(str(teacher['name'])))
+    html_content = html_content.replace('{{unique_code}}', html.escape(str(teacher['unique_code'])))
     
     # Handle credits display
     credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
-    html_content = html_content.replace('{{credits}}', credits_display)
+    html_content = html_content.replace('{{credits}}', html.escape(credits_display))
 
     return HTMLResponse(content=html_content)
 
@@ -712,8 +713,9 @@ async def reset_password_page(token: str):
     """Serve reset password page."""
     # We can reuse forgot_password.html layout or create new
     # Let's assume we create 'reset_password.html'
-    html_content = await get_template("app/static/reset_password.html")    # Inject token into JS
-    html_content = html_content.replace('{{token}}', html.escape(token))
+    html_content = await get_template("app/static/reset_password.html")
+    # Inject token into JS
+    html_content = html_content.replace('{{token}}', html.escape(str(token)))
     return HTMLResponse(content=html_content)
 
 

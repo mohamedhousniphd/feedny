@@ -1,0 +1,2 @@
+- Always use `html.escape()` for template variable injections when reading raw HTML instead of a rendering engine, as strings not properly escaped can introduce Stored XSS.
+- Be careful when defining variable names; rename shadow variables like `html` to `html_content` to avoid conflicts with Python's standard library modules like `html`.

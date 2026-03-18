@@ -78,10 +78,6 @@ app.add_middleware(
 )
 
 
-# Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
-
-
 # Initialize database on startup
 @app.on_event("startup")
 async def startup_event():

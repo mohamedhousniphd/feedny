@@ -1,5 +1,7 @@
+"""Tests for authentication logic."""
 import os
-from datetime import timedelta
+import calendar
+from datetime import datetime, timedelta
 import pytest
 from jose import jwt, JWTError
 
@@ -29,29 +31,57 @@ def test_get_password_hash():
     assert hashed != password
     assert pwd_context.verify(password, hashed) is True
 
-def test_create_access_token_no_expires():
-    data = {"sub": "user_id"}
+def test_create_access_token_default_expiry():
+    """Test creating an access token with default expiry (15 minutes)."""
+    data = {"sub": "testuser"}
+
+    # Create token
     token = create_access_token(data)
 
-    # Verify the token is a string and has 3 parts (header.payload.signature)
+    # Verify token type
     assert isinstance(token, str)
-    assert len(token.split(".")) == 3
 
-    # Decode to verify contents
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert payload["sub"] == "user_id"
+    # Decode token using unverified claims to inspect them without needing the secret
+    payload = jwt.get_unverified_claims(token)
+
+    # Verify data payload
+    assert payload["sub"] == "testuser"
+
+    # Verify expiry claim is present
     assert "exp" in payload
 
-def test_create_access_token_with_expires():
-    data = {"sub": "user_id"}
-    expires = timedelta(minutes=30)
+    # Calculate expected expiry (approx 15 mins from now)
+    expected_exp = datetime.utcnow() + timedelta(minutes=15)
+    expected_exp_timestamp = calendar.timegm(expected_exp.utctimetuple())
 
-    token = create_access_token(data, expires_delta=expires)
+    # Assert expiry is roughly 15 minutes in the future (allow 5 seconds difference for execution time)
+    assert abs(payload["exp"] - expected_exp_timestamp) <= 5
 
-    # Verify the token
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert payload["sub"] == "user_id"
+def test_create_access_token_custom_expiry():
+    """Test creating an access token with custom expiry."""
+    data = {"sub": "customuser", "role": "admin"}
+    expires_delta = timedelta(hours=1)
+
+    # Create token
+    token = create_access_token(data, expires_delta=expires_delta)
+
+    # Verify token type
+    assert isinstance(token, str)
+
+    # Decode token using unverified claims
+    payload = jwt.get_unverified_claims(token)
+
+    # Verify data payload
+    assert payload["sub"] == "customuser"
+    assert payload["role"] == "admin"
     assert "exp" in payload
+
+    # Calculate expected custom expiry
+    expected_exp = datetime.utcnow() + timedelta(hours=1)
+    expected_exp_timestamp = calendar.timegm(expected_exp.utctimetuple())
+
+    # Assert expiry is roughly 1 hour in the future (allow 5 seconds difference)
+    assert abs(payload["exp"] - expected_exp_timestamp) <= 5
 
 def test_decode_access_token_success():
     data = {"sub": "user_id"}

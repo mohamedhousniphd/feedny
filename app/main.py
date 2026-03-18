@@ -582,16 +582,12 @@ async def reset_database_endpoint(
     teacher: dict = Depends(get_current_teacher)
 ):
     """Reset the database (teacher only)."""
-    # For now, maybe restrict reset to admin or implement per-teacher reset (delete WHERE teacher_id=...)
-    # Implementing per-teacher delete for safety
-    # TODO: Refactor `reset_database` to accept teacher_id
-    if teacher['is_admin']:
+    if teacher.get('is_admin'):
         reset_database()
         return {"success": True, "message": "Base de données réinitialisée (Admin)"}
     else:
-        # For regular teachers, we might want a different function to clear only their data
-        # For MVP, disabling reset for non-admins to prevent data loss
-        raise HTTPException(status_code=403, detail="Action réservée aux administrateurs")
+        reset_database(teacher['id'])
+        return {"success": True, "message": "Vos données ont été réinitialisées"}
 
 
 @app.get("/api/export/csv")

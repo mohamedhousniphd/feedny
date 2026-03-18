@@ -193,11 +193,15 @@ def increment_device_feedback(device_id: str):
         conn.commit()
 
 
-def reset_database():
-    """Reset the database: delete all feedbacks and device limits."""
+def reset_database(teacher_id: Optional[int] = None):
+    """Reset the database: delete all feedbacks and device limits, or optionally filter by teacher_id."""
     with get_db() as conn:
-        conn.execute("DELETE FROM feedbacks")
-        conn.execute("DELETE FROM device_limits")
+        if teacher_id is not None:
+            conn.execute("DELETE FROM device_limits WHERE device_id IN (SELECT device_id FROM feedbacks WHERE teacher_id = ?)", (teacher_id,))
+            conn.execute("DELETE FROM feedbacks WHERE teacher_id = ?", (teacher_id,))
+        else:
+            conn.execute("DELETE FROM feedbacks")
+            conn.execute("DELETE FROM device_limits")
         conn.commit()
 
 

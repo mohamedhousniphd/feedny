@@ -130,6 +130,52 @@ else:
     print("❌ CRITICAL: No hybrid font found! Arabic/Latin MIX will fail.")
 
 
+def _extract_frequencies(text: str) -> dict:
+    """Extract word frequencies and handle multi-language stopwords and Arabic reshaping."""
+    # Get multi-language stopwords
+    stopwords_set = get_multilingual_stopwords()
+
+    # Construct regex dynamically to safely extract words
+    arabic_range = f"{chr(0x0600)}-{chr(0x06FF)}{chr(0x0750)}-{chr(0x077F)}{chr(0x08A0)}-{chr(0x08FF)}"
+    regex_pattern = f"[\\w{arabic_range}']+"
+
+    # Instead of directly feeding text, we process the text using WordCloud's default logic
+    # to extract words and frequencies.
+    wc_base = WordCloud(
+        stopwords=stopwords_set,
+        regexp=regex_pattern,
+        collocations=False
+    )
+    base_frequencies = wc_base.process_text(text)
+
+    # Now we reshape/bidi only the extracted words, which handles right-to-left layout correctly
+    # and translates raw Arabic chars into presentation forms supported by the font.
+    reshaped_frequencies = {}
+    for word, freq in base_frequencies.items():
+        reshaped_word = process_arabic_word(word)
+        reshaped_frequencies[reshaped_word] = freq
+
+    return reshaped_frequencies
+
+
+def _generate_wordcloud_image(wordcloud: WordCloud) -> str:
+    """Generate the base64 encoded image from a WordCloud object."""
+    # Convert to base64 image
+    fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    ax.set_title('Nuage de mots', fontsize=14, pad=20, color='black')
+
+    # Save to buffer
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png', bbox_inches='tight', facecolor='white', dpi=100)
+    buffer.seek(0)
+    plt.close(fig)
+
+    # Encode to base64
+    return base64.b64encode(buffer.read()).decode('utf-8')
+
+
 def create_wordcloud(
     text: str,
     width: int = 800,
@@ -148,28 +194,7 @@ def create_wordcloud(
         return None, {}
 
     try:
-        # Get multi-language stopwords
-        stopwords_set = get_multilingual_stopwords()
-
-        # Construct regex dynamically to safely extract words
-        arabic_range = f"{chr(0x0600)}-{chr(0x06FF)}{chr(0x0750)}-{chr(0x077F)}{chr(0x08A0)}-{chr(0x08FF)}"
-        regex_pattern = f"[\\w{arabic_range}']+"
-
-        # Instead of directly feeding text, we process the text using WordCloud's default logic
-        # to extract words and frequencies.
-        wc_base = WordCloud(
-            stopwords=stopwords_set,
-            regexp=regex_pattern,
-            collocations=False
-        )
-        base_frequencies = wc_base.process_text(text)
-        
-        # Now we reshape/bidi only the extracted words, which handles right-to-left layout correctly
-        # and translates raw Arabic chars into presentation forms supported by the font.
-        reshaped_frequencies = {}
-        for word, freq in base_frequencies.items():
-            reshaped_word = process_arabic_word(word)
-            reshaped_frequencies[reshaped_word] = freq
+        reshaped_frequencies = _extract_frequencies(text)
 
         # Create wordcloud with reshaped frequencies
         wordcloud = WordCloud(
@@ -188,20 +213,7 @@ def create_wordcloud(
         # Get word frequencies back (optional, but requested by API)
         word_frequencies = wordcloud.words_
 
-        # Convert to base64 image
-        fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        ax.set_title('Nuage de mots', fontsize=14, pad=20, color='black')
-
-        # Save to buffer
-        buffer = io.BytesIO()
-        plt.savefig(buffer, format='png', bbox_inches='tight', facecolor='white', dpi=100)
-        buffer.seek(0)
-        plt.close(fig)
-
-        # Encode to base64
-        image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        image_base64 = _generate_wordcloud_image(wordcloud)
 
         return image_base64, word_frequencies
 

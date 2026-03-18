@@ -206,9 +206,16 @@
         }
 
         async function approveReceipt(id) {
-            if (!confirm('Valider ce paiement et ajouter 10 crédits ?')) return;
+            const credits = prompt('Combien de crédits souhaitez-vous ajouter pour ce paiement ?', '10');
+            if (credits === null) return; // User cancelled
+            const parsedCredits = parseInt(credits);
+            if (isNaN(parsedCredits) || parsedCredits <= 0) {
+                alert('Veuillez entrer un nombre valide de crédits.');
+                return;
+            }
+            if (!confirm(`Valider ce paiement et ajouter ${parsedCredits} crédits ?`)) return;
             try {
-                const response = await fetch(`/api/admin/receipts/${id}/approve`, { method: 'POST' });
+                const response = await fetch(`/api/admin/receipts/${id}/approve?credits=${parsedCredits}`, { method: 'POST' });
                 if (response.ok) loadReceipts();
             } catch (e) { alert('Erreur'); }
         }

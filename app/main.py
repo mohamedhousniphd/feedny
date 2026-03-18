@@ -781,6 +781,7 @@ async def list_receipts(
 @app.post("/api/admin/receipts/{receipt_id}/approve")
 async def approve_receipt(
     receipt_id: int,
+    credits: Optional[int] = None,
     teacher: dict = Depends(get_current_teacher)
 ):
     """Approve a receipt and add credits (Admin only)."""
@@ -796,14 +797,14 @@ async def approve_receipt(
     if receipt['status'] == 'approved':
         return {"status": "success", "message": "Déjà approuvé"}
         
-    # Approve and add credits (e.g., 5 credits per valid payment)
-    # TODO: Make credit amount configurable or part of the request
-    CREDITS_PER_PAYMENT = 10 
+    # Approve and add credits
+    if credits is None:
+        credits = int(os.getenv("CREDITS_PER_PAYMENT", "10"))
     
     update_receipt_status(receipt_id, 'approved')
-    add_credits(receipt['teacher_id'], CREDITS_PER_PAYMENT)
+    add_credits(receipt['teacher_id'], credits)
     
-    return {"status": "success", "message": f"Reçu validé, {CREDITS_PER_PAYMENT} crédits ajoutés"}
+    return {"status": "success", "message": f"Reçu validé, {credits} crédits ajoutés"}
 
 
 @app.post("/api/admin/receipts/{receipt_id}/reject")

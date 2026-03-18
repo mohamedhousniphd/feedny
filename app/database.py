@@ -163,6 +163,23 @@ def get_feedbacks_by_ids(feedback_ids: list[int]) -> list[dict]:
         return [dict(row) for row in cursor.fetchall()]
 
 
+def get_feedbacks_by_ids_and_teacher(feedback_ids: list[int], teacher_id: int) -> list[dict]:
+    """Get multiple feedbacks by their IDs for a specific teacher."""
+    if not feedback_ids:
+        return []
+    with get_db() as conn:
+        placeholders = ','.join('?' * len(feedback_ids))
+        query = f"""
+            SELECT id, content, device_id, created_at, included_in_analysis, emotion
+            FROM feedbacks
+            WHERE teacher_id = ? AND id IN ({placeholders})
+            ORDER BY created_at DESC
+        """
+        params = [teacher_id] + feedback_ids
+        cursor = conn.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
 def check_device_limit(device_id: str) -> tuple[bool, int]:
     """
     Check if a device has already submitted a feedback.

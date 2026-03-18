@@ -7,32 +7,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 
 
-async def analyze_feedbacks(
-    feedbacks: list[str],
-    context: str,
-    max_tokens: int = 500,
-    emotions: Optional[list[int]] = None
-) -> Optional[str]:
-    """
-    Analyze feedbacks using DeepSeek API with optimized settings.
-
-    Args:
-        feedbacks: List of feedback texts
-        context: Context provided by the teacher
-        max_tokens: Maximum tokens for the response (reduced for faster response)
-        emotions: Optional list of emotion values (1-10) corresponding to feedbacks
-
-    Returns:
-        Generated summary or None if failed
-    """
-    if not DEEPSEEK_API_KEY:
-        print("Warning: DEEPSEEK_API_KEY is not configured")
-        return None
-
-    if not feedbacks:
-        print("Warning: No feedbacks to analyze")
-        return None
-
+def _generate_prompts(feedbacks: list[str], context: str, emotions: Optional[list[int]] = None) -> tuple[str, str]:
     # Combine feedbacks with emotions if available
     feedbacks_text = ""
     for i, fb in enumerate(feedbacks):
@@ -77,6 +52,51 @@ Feedbacks des étudiants:
 
 Génère un résumé concis et actionnable."""
 
+    return system_prompt, user_prompt
+
+
+def _create_payload(system_prompt: str, user_prompt: str, max_tokens: int) -> dict:
+    return {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "stream": False,
+        "max_tokens": max_tokens,
+        "temperature": 0.3  # Lower temperature for more consistent results
+    }
+
+
+async def analyze_feedbacks(
+    feedbacks: list[str],
+    context: str,
+    max_tokens: int = 500,
+    emotions: Optional[list[int]] = None
+) -> Optional[str]:
+    """
+    Analyze feedbacks using DeepSeek API with optimized settings.
+
+    Args:
+        feedbacks: List of feedback texts
+        context: Context provided by the teacher
+        max_tokens: Maximum tokens for the response (reduced for faster response)
+        emotions: Optional list of emotion values (1-10) corresponding to feedbacks
+
+    Returns:
+        Generated summary or None if failed
+    """
+    if not DEEPSEEK_API_KEY:
+        print("Warning: DEEPSEEK_API_KEY is not configured")
+        return None
+
+    if not feedbacks:
+        print("Warning: No feedbacks to analyze")
+        return None
+
+    system_prompt, user_prompt = _generate_prompts(feedbacks, context, emotions)
+    payload = _create_payload(system_prompt, user_prompt, max_tokens)
+
     try:
         # Increased timeout for reliability, reduced temperature for consistency
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -86,16 +106,7 @@ Génère un résumé concis et actionnable."""
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
                 },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "stream": False,
-                    "max_tokens": max_tokens,
-                    "temperature": 0.3  # Lower temperature for more consistent results
-                }
+                json=payload
             )
 
             if response.status_code == 200:

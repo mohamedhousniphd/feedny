@@ -16,7 +16,7 @@ from app.auth import (
     pwd_context
 )
 
-# --- Real Token Tests ---
+# --- Real Token & Password Tests ---
 
 def test_verify_password():
     password = "secret_password"
@@ -59,6 +59,20 @@ def test_get_password_hash():
     # Hash should be different from password and verifiable
     assert hashed != password
     assert pwd_context.verify(password, hashed) is True
+
+def test_get_password_hash_returns_hashed_string():
+    """Test that get_password_hash hashes the password and does not return plaintext."""
+    password = "super_secret_password"
+    hashed = get_password_hash(password)
+    assert hashed != password
+    assert isinstance(hashed, str)
+    assert len(hashed) > 0
+
+def test_get_password_hash_different_passwords():
+    """Test that different passwords result in different hashes."""
+    pwd1 = "password123"
+    pwd2 = "password456"
+    assert get_password_hash(pwd1) != get_password_hash(pwd2)
 
 def test_create_access_token_default_expiry():
     """Test creating an access token with default expiry (15 minutes)."""

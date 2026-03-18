@@ -1,7 +1,8 @@
 import sys
-from unittest.mock import Mock
+from unittest.mock import MagicMock
 
-# Pre-emptively mock missing dependencies before any app code is imported
+# MOCK SECTION: Pre-emptively mock heavy/binary dependencies for testing environments
+# This allows running tests even if these specialized libraries aren't installed.
 mock_modules = [
     'wordcloud', 'matplotlib', 'matplotlib.pyplot',
     'stopwordsiso', 'pandas', 'httpx', 'reportlab', 'reportlab.pdfgen', 'reportlab.lib',
@@ -10,4 +11,13 @@ mock_modules = [
 ]
 
 for mod in mock_modules:
-    sys.modules[mod] = Mock()
+    try:
+        __import__(mod)
+    except ImportError:
+        sys.modules[mod] = MagicMock()
+
+# Special handling for stopwordsiso mocking if needed by specific tests
+if 'stopwordsiso' in sys.modules and isinstance(sys.modules['stopwordsiso'], MagicMock):
+    def stopwords_mock(lang):
+        return [] # Return empty list by default for mocks
+    sys.modules['stopwordsiso'].stopwords = stopwords_mock

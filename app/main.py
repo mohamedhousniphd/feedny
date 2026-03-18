@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -482,10 +483,10 @@ async def analyze_feedbacks_endpoint(
         feedback_contents = [fb["content"] for fb in feedbacks]
         feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-        # Step 1: Generate wordcloud (synchronous)
+        # Step 1: Generate wordcloud (offloaded to threadpool)
         wordcloud_base64 = ""
         try:
-            result = create_wordcloud(feedbacks_text)
+            result = await run_in_threadpool(create_wordcloud, feedbacks_text)
             if result and result[0]:
                 wordcloud_base64 = result[0]
         except Exception as e:
@@ -960,8 +961,9 @@ async def export_pdf(
         if not wordcloud_image or not analysis_text:
             raise HTTPException(status_code=400, detail="Données manquantes pour générer le PDF")
 
-        # Generate PDF
-        pdf_bytes = create_analysis_pdf(
+        # Generate PDF (offloaded to threadpool)
+        pdf_bytes = await run_in_threadpool(
+            create_analysis_pdf,
             wordcloud_image_base64=wordcloud_image,
             analysis_text=analysis_text,
             context=context

@@ -11,61 +11,60 @@
 
 <body>
     <div class="container">
-        <div class="header">
-            <h1>📝 Afeedny</h1>
-            <p class="subtitle">Partagez votre feedback</p>
-            <p style="margin-top: 5px; font-size: 0.8em;"><a href="/api/student/logout"
-                    style="color: #666; text-decoration: underline;">Changer de cours</a></p>
-        </div>
+        <header class="header">
+            <h1>Afeedny</h1>
+            <div class="header-controls">
+                <a href="/api/student/logout" class="btn btn-sm btn-secondary">Changer de cours</a>
+            </div>
+        </header>
 
-        <div id="feedback-form" class="feedback-form">
-            <div class="question-container">
-                <h2 id="teacher-question">{{question}}</h2>
+        <section id="feedback-form" style="max-width: 600px; margin: 0 auto;">
+            <div class="card" style="text-align: center; margin-bottom: 24px; background-color: var(--color-background);">
+                <h2 id="teacher-question" style="margin-bottom: 0;">{{question}}</h2>
             </div>
 
-            <div class="form-group">
-                <label for="feedback-content">Votre feedback</label>
-                <textarea id="feedback-content" maxlength="240"
-                    placeholder="Partagez vos pensées... (max 240 caractères)" rows="5"></textarea>
-                <div class="char-count">
-                    <span id="current-chars">0</span>/240
+            <div class="card">
+                <div class="form-group">
+                    <label for="feedback-content">Votre feedback</label>
+                    <textarea id="feedback-content" maxlength="240" placeholder="Partagez vos pensées... (max 240 caractères)" rows="5"></textarea>
+                    <div style="text-align: right; margin-top: 8px;">
+                        <span id="current-chars" style="font-size: 0.75rem; color: var(--color-text-muted);">0</span><span style="font-size: 0.75rem; color: var(--color-text-muted);">/240</span>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group emoji-section">
-                <label>Comment vous sentez-vous ?</label>
-                <div class="emoji-picker" id="emoji-picker">
-                    <button type="button" class="emoji-btn" data-emotion="1" title="Très triste">😢</button>
-                    <button type="button" class="emoji-btn" data-emotion="2" title="Triste">😔</button>
-                    <button type="button" class="emoji-btn" data-emotion="3" title="Déçu">😕</button>
-                    <button type="button" class="emoji-btn" data-emotion="4" title="Neutre">😐</button>
-                    <button type="button" class="emoji-btn" data-emotion="5" title="Content">🙂</button>
-                    <button type="button" class="emoji-btn" data-emotion="6" title="Satisfait">😊</button>
-                    <button type="button" class="emoji-btn" data-emotion="7" title="Heureux">😃</button>
-                    <button type="button" class="emoji-btn" data-emotion="8" title="Très heureux">😄</button>
-                    <button type="button" class="emoji-btn" data-emotion="9" title="Ravi">🤩</button>
-                    <button type="button" class="emoji-btn" data-emotion="10" title="Euphorique">🥳</button>
+                <div class="form-group">
+                    <label>Comment vous sentez-vous ?</label>
+                    <div class="emoji-picker" id="emoji-picker" style="padding: 12px; border-radius: var(--radius-md); background-color: var(--color-background); border: 1px solid var(--color-border);">
+                        <button type="button" class="btn emoji-btn" data-emotion="1" title="Très triste">😢</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="2" title="Triste">😔</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="3" title="Déçu">😕</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="4" title="Neutre">😐</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="5" title="Content">🙂</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="6" title="Satisfait">😊</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="7" title="Heureux">😃</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="8" title="Très heureux">😄</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="9" title="Ravi">🤩</button>
+                        <button type="button" class="btn emoji-btn" data-emotion="10" title="Euphorique">🥳</button>
+                    </div>
+                    <input type="hidden" id="selected-emotion" value="">
                 </div>
-                <input type="hidden" id="selected-emotion" value="">
+
+                <button id="submit-btn" class="btn btn-primary" style="width: 100%; height: 48px; font-size: 1rem;">Envoyer mon feedback</button>
             </div>
+        </section>
 
-            <button id="submit-btn" class="btn btn-primary" type="submit">
-                Envoyer
-            </button>
+        <div id="success-message" class="hidden" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 4rem; margin-bottom: 24px; color: var(--color-success);">✓</div>
+            <h2 style="font-size: 2rem;">Merci !</h2>
+            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Votre feedback a été enregistré avec succès.</p>
+            <p style="font-size: 0.875rem; color: var(--color-text-muted);">L'enseignant pourra analyser votre réponse sous peu.</p>
         </div>
 
-        <div id="success-message" class="success-message hidden">
-            <div class="success-icon">✓</div>
-            <h2>Merci !</h2>
-            <p>Votre feedback a été enregistré avec succès.</p>
-            <p class="info">L'enseignant analysera les feedbacks avant d'ouvrir une nouvelle collecte.</p>
-        </div>
-
-        <div id="already-submitted" class="info-message hidden">
-            <div class="info-icon">ℹ</div>
-            <h2>Déjà envoyé</h2>
-            <p>Vous avez déjà soumis un feedback.</p>
-            <p class="info">Veuillez attendre que l'enseignant ouvre une nouvelle collecte.</p>
+        <div id="already-submitted" class="hidden" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 4rem; margin-bottom: 24px; color: var(--color-primary);">ℹ</div>
+            <h2 style="font-size: 2rem;">Déjà envoyé</h2>
+            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Vous avez déjà soumis un feedback pour cette session.</p>
+            <p style="font-size: 0.875rem; color: var(--color-text-muted);">Veuillez attendre que l'enseignant ouvre une nouvelle collecte.</p>
         </div>
     </div>
 

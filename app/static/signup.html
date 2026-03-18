@@ -10,20 +10,20 @@
 </head>
 
 <body>
-    <div class="container auth-container">
-        <div class="header">
-            <h1>👨‍🏫 Afeedny</h1>
-            <p class="subtitle">Créer un compte enseignant</p>
-        </div>
+    <div class="container" style="max-width: 480px; margin: 0 auto;">
+        <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
+            <h1>Afeedny</h1>
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Créer un compte enseignant</p>
+        </header>
 
-        <div class="auth-form-card">
+        <section class="card">
             <form id="signup-form">
                 <div class="form-group">
                     <label for="name">Nom Complet</label>
                     <input type="text" id="name" required placeholder="Ex: Prof. Mohamed">
                 </div>
                 <div class="form-group">
-                    <label for="email">Email</label>
+                    <label for="email">Email professionnel</label>
                     <input type="email" id="email" required placeholder="votre@email.com">
                 </div>
                 <div class="form-group">
@@ -32,19 +32,15 @@
                 </div>
                 <div class="form-group">
                     <label for="invitation_code">Code d'invitation</label>
-                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin"
-                        style="text-transform: uppercase;">
-                    <small style="color: #666; font-size: 0.8em;">Un code d'invitation est requis pour créer un
-                        compte.</small>
+                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin" style="text-transform: uppercase;">
+                    <p style="margin-top: 6px; color: var(--color-text-muted); font-size: 0.75rem;">Un code d'invitation est nécessaire pour l'inscription.</p>
                 </div>
-                <button type="submit" class="btn btn-primary" id="signup-btn">S'inscrire</button>
+                <button type="submit" class="btn btn-primary" id="signup-btn" style="width: 100%; height: 44px; margin-top: 8px;">Créer mon compte</button>
             </form>
-            <p class="auth-link">Déjà un compte ? <a href="/login">Se connecter</a></p>
-        </div>
-
-        <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
-            <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
-        </footer>
+            <div style="margin-top: 24px; text-align: center; font-size: 0.875rem; color: var(--color-text-muted);">
+                Déjà un compte ? <a href="/login" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">Se connecter</a>
+            </div>
+        </section>
     </div>
 
     <script>

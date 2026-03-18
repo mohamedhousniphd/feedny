@@ -7,44 +7,23 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Rejoindre un cours - Afeedny</title>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <style>
-        .landing-container {
-            max-width: 400px;
-            margin: 0 auto;
-            text-align: center;
-            padding-top: 40px;
-        }
+    <div class="container">
+        <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
+            <h1>Afeedny</h1>
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Rejoindre une session de feedback</p>
+        </header>
 
-        .code-input {
-            font-size: 24px;
-            letter-spacing: 4px;
-            text-align: center;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container landing-container">
-        <div class="header">
-            <h1>📝 Afeedny</h1>
-            <p class="subtitle">Rejoindre une session de feedback</p>
-        </div>
-
-        <div class="auth-form-card">
-            <form id="code-form">
-                <div class="form-group">
-                    <label for="code">Code Enseignant</label>
-                    <input type="text" id="code" class="code-input" required maxlength="10" placeholder="CODE">
-                </div>
-                <button type="submit" class="btn btn-primary">Accéder au formulaire</button>
-            </form>
-        </div>
-
-        <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
-            <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
-        </footer>
+        <section style="max-width: 480px; margin: 0 auto;">
+            <div class="card">
+                <form id="code-form">
+                    <div class="form-group">
+                        <label for="code">Code Enseignant</label>
+                        <input type="text" id="code" style="font-size: 1.5rem; letter-spacing: 0.2em; text-align: center; text-transform: uppercase;" required maxlength="10" placeholder="CODE">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Accéder au formulaire</button>
+                </form>
+            </div>
+        </section>
     </div>
 
     <script>

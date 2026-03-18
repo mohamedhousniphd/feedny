@@ -39,93 +39,104 @@
 
 <body>
     <div class="container">
-        <div class="header">
-            <h1>⚙️ Administration</h1>
-            <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
-        </div>
+        <header class="header">
+            <h1>Administration</h1>
+            <div class="header-controls">
+                <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
+            </div>
+        </header>
 
-        <div class="tabs" style="margin-bottom: 20px;">
+        <section class="actions" style="margin-bottom: 32px;">
             <button class="btn btn-primary" onclick="showTab('credits')">Gestion Crédits</button>
             <button class="btn btn-secondary" onclick="showTab('receipts')">Validation Paiements</button>
             <button class="btn btn-secondary" onclick="showTab('users')">Utilisateurs</button>
-        </div>
+        </section>
 
         <!-- Section Crédits -->
         <div id="tab-credits" class="section-tab">
-            <div class="analysis-section">
+            <section>
                 <h2>Gestion des Crédits</h2>
-                <div class="form-group">
-                    <input type="text" id="search-email" placeholder="Rechercher par email..."
-                        style="padding: 8px; width: 300px;">
-                    <button id="search-btn" class="btn btn-secondary">Rechercher</button>
+                <div class="card">
+                    <div class="form-group" style="display: flex; gap: 12px; align-items: flex-end;">
+                        <input type="text" id="search-email" placeholder="Rechercher par email..." style="max-width: 400px;">
+                        <button id="search-btn" class="btn btn-secondary">Rechercher</button>
+                    </div>
                 </div>
-            </div>
-            <div class="feedbacks-section">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th>Email</th>
-                            <th>Code</th>
-                            <th>Crédits</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="teachers-list">
-                        <!-- Teachers will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
+            </section>
+            
+            <section>
+                <div class="table-container">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Code</th>
+                                <th>Crédits</th>
+                                <th width="200">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teachers-list">
+                            <!-- Content loaded by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
 
         <!-- Section Reçus -->
         <div id="tab-receipts" class="section-tab hidden">
-            <div class="analysis-section">
+            <section>
                 <h2>Instructions de Paiement</h2>
-                <div class="form-group">
-                    <textarea id="payment-instructions" rows="4" style="width: 100%; padding: 10px;"
-                        placeholder="Instructions pour les enseignants (RIB, etc.)"></textarea>
-                    <button id="save-instructions-btn" class="btn btn-primary" style="margin-top: 10px;">Enregistrer
-                        Instructions</button>
+                <div class="card">
+                    <div class="form-group">
+                        <textarea id="payment-instructions" rows="4" placeholder="Instructions pour les enseignants (RIB, etc.)"></textarea>
+                    </div>
+                    <button id="save-instructions-btn" class="btn btn-primary">Enregistrer Instructions</button>
                 </div>
-            </div>
-            <div class="feedbacks-section">
+            </section>
+
+            <section>
                 <h2>Reçus en attente</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Enseignant</th>
-                            <th>Preuve</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="receipts-list">
-                        <!-- Receipts will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
+                <div class="table-container">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th width="100">Date</th>
+                                <th>Enseignant</th>
+                                <th>Preuve</th>
+                                <th>Status</th>
+                                <th width="150">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receipts-list">
+                            <!-- Content loaded by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
 
         <!-- Section Users -->
         <div id="tab-users" class="section-tab hidden">
-            <div class="feedbacks-section">
+            <section>
                 <h2>Gestion des Utilisateurs</h2>
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Nom</th>
-                            <th>Email</th>
-                            <th>Code</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-list">
-                        <!-- Users will be loaded here -->
-                    </tbody>
-                </table>
-            </div>
+                <div class="table-container">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Email</th>
+                                <th>Code</th>
+                                <th width="150">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-list">
+                            <!-- Content loaded by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </div>
 

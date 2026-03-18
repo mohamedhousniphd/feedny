@@ -10,146 +10,124 @@
 </head>
 
 <body>
-    <div class="container dashboard-container">
+    <div class="container">
         <!-- Header -->
-        <div class="header">
-            <h1>📊 Tableau de bord - {{name}}</h1>
+        <header class="header">
+            <h1>Dashboard — {{name}}</h1>
             <div class="header-controls">
-                <div class="code-display" title="Partagez ce code avec vos étudiants">
+                <div class="code-display" title="Code d'invitation étudiant">
                     Code: <strong id="teacher-code-display">{{unique_code}}</strong>
-                    <button id="edit-code-btn" class="btn btn-sm"
-                        style="padding: 2px 4px; font-size: 0.7em;" aria-label="Modifier le code">
-                        <span aria-hidden="true">✏️</span>
-                    </button>
+                    <button id="edit-code-btn" class="btn btn-sm btn-secondary" title="Modifier le code">✏️</button>
                 </div>
-                <div class="credits_display"
-                    style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; margin-right: 10px;">
-                    💎 Crédits: <strong id="credits-count">{{credits}}</strong>
-                    <a href="/static/payment.html" class="btn btn-sm btn-primary"
-                        style="margin-left: 5px; font-size: 0.8em; padding: 2px 8px;">Recharger</a>
+                <div class="credits-display">
+                    💎 <strong id="credits-count">{{credits}}</strong>
+                    <a href="/static/payment.html" class="btn btn-sm btn-primary">Recharger</a>
                 </div>
                 <button id="logout-btn" class="btn btn-secondary">Déconnexion</button>
-                <a href="/admin" id="admin-panel-link" class="btn btn-secondary hidden"
-                    style="background: #333; color: white;">⚙️ Admin</a>
+                <a href="/admin" id="admin-panel-link" class="btn btn-secondary hidden">Admin</a>
             </div>
-        </div>
+        </header>
 
         <!-- Stats -->
         <div class="stats">
             <div class="stat-card">
+                <div class="stat-label">Feedbacks Totaux</div>
                 <div class="stat-number" id="total-feedbacks">0</div>
-                <div class="stat-label">Total Feedbacks</div>
             </div>
             <div class="stat-card">
+                <div class="stat-label">Feedbacks Sélectionnés</div>
                 <div class="stat-number" id="selected-feedbacks">0</div>
-                <div class="stat-label">Sélectionnés</div>
             </div>
         </div>
 
-        <!-- Actions -->
-        <div class="actions">
-            <button id="refresh-btn" class="btn btn-secondary" title="Rafraîchir">
-                🔄 Rafraîchir
-            </button>
-            <button id="export-csv-btn" class="btn btn-secondary" title="Exporter CSV">
-                📥 CSV
-            </button>
-            <button id="export-json-btn" class="btn btn-secondary" title="Exporter JSON">
-                💾 Export JSON
-            </button>
-            <button id="import-json-btn" class="btn btn-secondary" title="Importer JSON">
-                📤 Import JSON
-            </button>
-            <input type="file" id="import-file-input" class="import-file-input" accept=".json">
-            <button id="reset-btn" class="btn btn-danger" title="Réinitialiser">
-                🗑️ Réinitialiser
-            </button>
-        </div>
+        <!-- Quick Actions -->
+        <section class="actions">
+            <button id="refresh-btn" class="btn btn-secondary">🔄 Rafraîchir</button>
+            <button id="export-csv-btn" class="btn btn-secondary">📥 Exporter CSV</button>
+            <button id="export-json-btn" class="btn btn-secondary">💾 Exporter JSON</button>
+            <button id="import-json-btn" class="btn btn-secondary">📤 Importer JSON</button>
+            <input type="file" id="import-file-input" class="hidden" accept=".json">
+            <button id="reset-btn" class="btn btn-danger">🗑️ Réinitialiser</button>
+        </section>
 
-        <!-- Question Section -->
-        <div class="analysis-section">
-            <h2>Question pour les étudiants</h2>
-            <div class="form-group">
-                <input type="text" id="teacher-question-input" placeholder="Ex: Comment s'est passé votre cours ?"
-                    maxlength="200"
-                    style="width: 100%; padding: 12px; border: 2px solid var(--color-border-dark); border-radius: 8px;">
+        <!-- Teacher Question -->
+        <section>
+            <h2>Question Actuelle</h2>
+            <div class="card">
+                <div class="form-group">
+                    <input type="text" id="teacher-question-input" placeholder="Ex: Comment s'est passé votre cours ?" maxlength="200">
+                </div>
+                <button id="save-question-btn" class="btn btn-primary">Enregistrer la Question</button>
             </div>
-            <button id="save-question-btn" class="btn btn-primary">
-                💾 Enregistrer la Question
-            </button>
-        </div>
+        </section>
 
-        <!-- Feedbacks Table -->
-        <div class="feedbacks-section">
+        <!-- Feedbacks List -->
+        <section>
             <h2>Feedbacks Reçus</h2>
             <div class="table-container">
                 <table id="feedbacks-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-column">
-                                <input type="checkbox" id="select-all">
-                            </th>
-                            <th>Feedback</th>
-                            <th>Émotion</th>
-                            <th>Date</th>
-                            <th>Inclure</th>
+                            <th width="40"><input type="checkbox" id="select-all"></th>
+                            <th>Commentaire</th>
+                            <th width="100">Humeur</th>
+                            <th width="150">Date</th>
+                            <th width="80">Statut</th>
                         </tr>
                     </thead>
                     <tbody id="feedbacks-body">
-                        <!-- Feedbacks will be loaded here -->
+                        <!-- Content loaded by JS -->
                     </tbody>
                 </table>
                 <div id="no-feedbacks" class="no-data hidden">
                     <p>Aucun feedback reçu pour le moment</p>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Analysis Section -->
-        <div class="analysis-section">
-            <h2>Analyse</h2>
-            <div class="form-group">
-                <label for="context">Contexte (pour aider l'IA)</label>
-                <textarea id="context" rows="3"
-                    placeholder="Ex: Cours de mathématiques sur les équations différentielles du 15 janvier 2024..."
-                    maxlength="1000"></textarea>
+        <!-- Analyze Call to Action -->
+        <section>
+            <h2>Analyse Contextuelle</h2>
+            <div class="card">
+                <div class="form-group">
+                    <label for="context">Contexte du cours</label>
+                    <textarea id="context" rows="3" placeholder="Ex: Cours de mathématiques sur les équations différentielles..." maxlength="1000"></textarea>
+                </div>
+                <button id="analyze-btn" class="btn btn-primary">Générer l'analyse IA</button>
             </div>
-            <button id="analyze-btn" class="btn btn-primary">
-                📊 Analyser les Feedbacks Sélectionnés
-            </button>
-        </div>
+        </section>
 
-        <!-- Results Section -->
-        <div id="results-section" class="results-section hidden">
-            <h2>Résultats</h2>
-            <div id="wordcloud-container" class="wordcloud-container">
-                <img id="wordcloud-image" src="" alt="Nuage de mots">
+        <!-- Results Display -->
+        <section id="results-section" class="hidden">
+            <h2>Résultats de l'analyse</h2>
+            <div class="card">
+                <div id="wordcloud-container" style="text-align: center; margin-bottom: 24px;">
+                    <img id="wordcloud-image" src="" alt="Nuage de mots" style="max-width: 100%; border-radius: var(--radius-md);">
+                </div>
+                <div class="summary-container">
+                    <h3>Résumé de l'IA</h3>
+                    <div id="summary-text"></div>
+                </div>
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button id="download-wordcloud-btn" class="btn btn-secondary">Télécharger le Wordcloud</button>
+                    <button id="download-pdf-btn" class="btn btn-primary" style="background-color: var(--color-error); border-color: var(--color-error);">Télécharger PDF</button>
+                </div>
             </div>
-            <div class="summary-container">
-                <h3>Résumé IA</h3>
-                <div id="summary-text"></div>
-            </div>
-            <button id="download-wordcloud-btn" class="btn btn-secondary">
-                💾 Télécharger le Nuage de Mots
-            </button>
-            <button id="download-pdf-btn" class="btn btn-pdf">
-                📄 Télécharger PDF
-            </button>
-        </div>
+        </section>
 
-        <!-- Loading Overlay -->
-        <div id="loading-overlay" class="loading-overlay hidden">
-            <div class="loading-spinner"></div>
-            <p>Analyse en cours...</p>
-        </div>
-
-        <!-- Analysis History Section -->
-        <div class="analysis-section" style="margin-top: 30px;">
-            <h2>📜 Historique des Analyses</h2>
-            <div id="history-container">
-                <p id="no-history" class="no-data">Aucune analyse précédente</p>
+        <!-- History -->
+        <section>
+            <h2>Historique des Analyses</h2>
+            <div id="history-container" class="card" style="padding: 0;">
+                <p id="no-history" style="padding: 24px; color: var(--color-text-muted);">Aucune analyse précédente</p>
             </div>
-        </div>
+        </section>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>Analyse des feedbacks en cours...</p>
     </div>
 
     <footer>
@@ -251,14 +229,14 @@
 
                 tbody.innerHTML = data.feedbacks.map(fb => `
                     <tr data-id="${fb.id}">
-                        <td class="checkbox-column">
+                        <td>
                             <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
                         </td>
-                        <td class="feedback-content">${escapeHtml(fb.content)}</td>
-                        <td class="feedback-emotion">${getEmotionEmoji(fb.emotion)}</td>
-                        <td class="feedback-date">${formatDate(fb.created_at)}</td>
-                        <td class="feedback-status">
-                            ${fb.included_in_analysis ? '<span class="status-included">✓</span>' : '<span class="status-excluded">✗</span>'}
+                        <td>${escapeHtml(fb.content)}</td>
+                        <td>${getEmotionEmoji(fb.emotion)}</td>
+                        <td><span class="badge">${formatDate(fb.created_at)}</span></td>
+                        <td>
+                            ${fb.included_in_analysis ? '<span style="color: var(--color-success); font-weight: 600;">Inclus</span>' : '<span style="color: var(--color-text-muted);">Exclu</span>'}
                         </td>
                     </tr>
                 `).join('');
@@ -611,33 +589,37 @@
                 }
                 noHistory.style.display = 'none';
 
-                let html = `<table class="history-table" style="width:100%; border-collapse:collapse; font-size:0.9em;">
+                let html = `<table>
                     <thead>
-                        <tr style="background:#f0f0f0;">
-                            <th style="padding:10px; text-align:left;">Date</th>
-                            <th style="padding:10px; text-align:left;">Contexte</th>
-                            <th style="padding:10px; text-align:center;">Feedbacks</th>
-                            <th style="padding:10px; text-align:center;">Actions</th>
+                        <tr>
+                            <th>Date</th>
+                            <th>Contexte</th>
+                            <th width="80">Volume</th>
+                            <th width="100">Actions</th>
                         </tr>
                     </thead>
                     <tbody>`;
 
                 data.analyses.forEach(a => {
-                    const ctx = a.context ? escapeHtml(a.context.substring(0, 60)) : 'Sans contexte';
+                    const ctx = a.context ? escapeHtml(a.context.substring(0, 50)) + (a.context.length > 50 ? '...' : '') : '—';
                     html += `
-                        <tr style="border-bottom:1px solid #eee; cursor:pointer;" onclick="toggleHistoryDetail(${a.id})">
-                            <td style="padding:10px;">${formatDate(a.created_at)}</td>
-                            <td style="padding:10px;">${ctx}</td>
-                            <td style="padding:10px; text-align:center;">${a.feedback_count}</td>
-                            <td style="padding:10px; text-align:center; white-space:nowrap;">
-                                <button class="btn btn-sm btn-secondary" style="font-size:0.8em; padding:3px 8px;" onclick="event.stopPropagation(); downloadHistoryPDF(${a.id})" title="Télécharger PDF">📄</button>
-                                <button class="btn btn-sm" style="font-size:0.8em; padding:3px 8px; background:#ff4444; color:white; border:none; border-radius:4px; cursor:pointer;" onclick="event.stopPropagation(); deleteAnalysis(${a.id})" title="Supprimer">🗑️</button>
+                        <tr class="history-item" onclick="toggleHistoryDetail(${a.id})">
+                            <td>${formatDate(a.created_at)}</td>
+                            <td>${ctx}</td>
+                            <td style="text-align: center;"><span class="badge">${a.feedback_count}</span></td>
+                            <td>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); downloadHistoryPDF(${a.id})" title="PDF">📄</button>
+                                    <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteAnalysis(${a.id})" title="Supprimer">🗑️</button>
+                                </div>
                             </td>
                         </tr>
-                        <tr id="history-detail-${a.id}" style="display:none;">
-                            <td colspan="4" style="padding:15px; background:#fafafa;">
-                                ${a.wordcloud_image ? `<img src="data:image/png;base64,${a.wordcloud_image}" style="max-width:100%; border-radius:6px; margin-bottom:10px;" alt="Wordcloud">` : ''}
-                                <div style="white-space:pre-wrap; line-height:1.5;">${formatMarkdown(a.summary)}</div>
+                        <tr id="history-detail-${a.id}" class="hidden">
+                            <td colspan="4" style="padding: 24px; background-color: var(--color-background);">
+                                ${a.wordcloud_image ? `<img src="data:image/png;base64,${a.wordcloud_image}" style="max-width: 100%; border-radius: var(--radius-md); margin-bottom: 24px;" alt="Wordcloud">` : ''}
+                                <div class="summary-container" style="border: none; padding: 0;">
+                                    <div style="white-space: pre-wrap;">${formatMarkdown(a.summary)}</div>
+                                </div>
                             </td>
                         </tr>`;
                 });
@@ -656,7 +638,7 @@
         function toggleHistoryDetail(id) {
             const row = document.getElementById('history-detail-' + id);
             if (row) {
-                row.style.display = row.style.display === 'none' ? '' : 'none';
+                row.classList.toggle('hidden');
             }
         }
 

@@ -10,30 +10,28 @@
 </head>
 
 <body>
-    <div class="container auth-container">
-        <div class="header">
-            <h1>👨‍🏫 Afeedny</h1>
-            <p class="subtitle">Connexion Enseignant</p>
-        </div>
+    <div class="container" style="max-width: 480px; margin: 0 auto;">
+        <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
+            <h1>Afeedny</h1>
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Accès Enseignant</p>
+        </header>
 
-        <div class="auth-form-card">
+        <section class="card">
             <form id="login-form">
                 <div class="form-group">
-                    <label for="email">Email</label>
+                    <label for="email">Email professionnel</label>
                     <input type="email" id="email" required placeholder="votre@email.com">
                 </div>
                 <div class="form-group">
                     <label for="password">Mot de passe</label>
                     <input type="password" id="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary" id="login-btn">Se connecter</button>
+                <button type="submit" class="btn btn-primary" id="login-btn" style="width: 100%; height: 44px; margin-top: 8px;">Se connecter</button>
             </form>
-            <p class="auth-link">Pas encore de compte ? <a href="/signup">S'inscrire</a></p>
-        </div>
-
-        <footer style="margin-top: 40px; color: #666; font-size: 0.9em; text-align: center;">
-            <p>Developed and maintained by Mohamed HOUSNI Ph.D.</p>
-        </footer>
+            <div style="margin-top: 24px; text-align: center; font-size: 0.875rem; color: var(--color-text-muted);">
+                Pas encore de compte ? <a href="/signup" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">Créer un compte</a>
+            </div>
+        </section>
     </div>
 
     <script>

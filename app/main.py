@@ -33,6 +33,7 @@ from app.database import (
     get_feedback_by_id,
     toggle_feedback_inclusion,
     get_feedbacks_by_ids,
+    get_feedbacks_by_ids_and_teacher,
     check_device_limit,
     increment_device_feedback,
     reset_database,
@@ -626,18 +627,27 @@ async def reset_database_endpoint(
 @app.get("/api/export/csv")
 async def export_csv(
     request: Request,
-    teacher: dict = Depends(get_current_teacher)
+    teacher: dict = Depends(get_current_teacher),
+    feedbacks: Optional[str] = Query(None)  # comma-separated IDs
 ):
     """Export feedbacks as CSV (teacher only)."""
     import pandas as pd
 
-    feedbacks = get_all_feedbacks(teacher['id'])
+    if feedbacks:
+        # Export only selected feedbacks
+        feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
+        if not feedback_ids:
+            raise HTTPException(status_code=400, detail="Aucun ID de feedback valide fourni")
+        all_feedbacks = get_feedbacks_by_ids_and_teacher(feedback_ids, teacher['id'])
+    else:
+        # Export all feedbacks for the teacher
+        all_feedbacks = get_all_feedbacks(teacher['id'])
 
-    if not feedbacks:
+    if not all_feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
 
     # Create DataFrame
-    df = pd.DataFrame(feedbacks)
+    df = pd.DataFrame(all_feedbacks)
     # Filter columns to export
     columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
     # Only keep columns that exist

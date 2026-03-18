@@ -81,6 +81,22 @@ app.add_middleware(
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
+# Template cache
+template_cache = {}
+
+async def get_template(filepath: str) -> str:
+    """Read file content with in-memory caching and async support."""
+    if filepath in template_cache:
+        return template_cache[filepath]
+
+    def read_file_sync():
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read()
+
+    content = await asyncio.to_thread(read_file_sync)
+    template_cache[filepath] = content
+    return content
+
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -151,8 +167,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-        with open("app/static/student_landing.html", "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+        content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=content)
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -165,8 +181,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
-    with open("app/static/index.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html = await get_template("app/static/index.html")
 
     # Inject data (handle optional spaces in tags)
     import re
@@ -206,22 +221,22 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
     """Login page."""
-    with open("app/static/login.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/login.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page():
     """Forgot password page."""
-    with open("app/static/forgot_password.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/forgot_password.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
-    with open("app/static/signup.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/signup.html")
+    return HTMLResponse(content=content)
 
 
 @app.get("/teacher", response_class=HTMLResponse)
@@ -233,8 +248,7 @@ async def teacher_dashboard(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/dashboard.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html = await get_template("app/static/dashboard.html")
     
     # Inject teacher info
     html = html.replace('{{name}}', teacher['name'])
@@ -686,8 +700,7 @@ async def reset_password_page(token: str):
     """Serve reset password page."""
     # We can reuse forgot_password.html layout or create new
     # Let's assume we create 'reset_password.html'
-    with open("app/static/reset_password.html", "r", encoding="utf-8") as f:
-        html = f.read()
+    html = await get_template("app/static/reset_password.html")
     # Inject token into JS
     html = html.replace('{{token}}', token)
     return HTMLResponse(content=html)
@@ -884,8 +897,8 @@ async def admin_page(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    with open("app/static/admin.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    content = await get_template("app/static/admin.html")
+    return HTMLResponse(content=content)
 
 
 class CreditUpdate(FeedbackRequest.__base__):

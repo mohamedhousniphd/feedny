@@ -59,8 +59,7 @@ from app.models import (
     ErrorResponse,
     ImportFeedbackItem
 )
-from app.services.wordcloud import create_wordcloud
-from app.services.deepseek import analyze_feedbacks
+from app.services.analysis import process_feedback_analysis
 from datetime import timedelta
 from fastapi import Cookie, Query
 
@@ -477,33 +476,8 @@ async def analyze_feedbacks_endpoint(
             if fb.get('teacher_id') and fb['teacher_id'] != teacher['id']:
                 raise HTTPException(status_code=403, detail="Accès non autorisé à certains feedbacks")
 
-        # Extract content and emotions
-        feedbacks_text = " ".join([fb["content"] for fb in feedbacks])
-        feedback_contents = [fb["content"] for fb in feedbacks]
-        feedback_emotions = [fb.get("emotion") for fb in feedbacks]
-
-        # Step 1: Generate wordcloud (synchronous)
-        wordcloud_base64 = ""
-        try:
-            result = create_wordcloud(feedbacks_text)
-            if result and result[0]:
-                wordcloud_base64 = result[0]
-        except Exception as e:
-            print(f"Wordcloud error (non-fatal): {e}")
-
-        # Step 2: AI Analysis via DeepSeek
-        summary = ""
-        try:
-            summary = await analyze_feedbacks(
-                feedbacks=feedback_contents,
-                context=request_data.context,
-                emotions=feedback_emotions
-            )
-        except Exception as e:
-            print(f"DeepSeek error (non-fatal): {e}")
-
-        if not summary:
-            summary = "L'analyse IA n'est pas disponible actuellement. Le nuage de mots a été généré."
+        # Process feedback analysis (wordcloud and DeepSeek AI analysis)
+        wordcloud_base64, summary = await process_feedback_analysis(feedbacks, request_data.context)
         
         # Deduct credit if not admin
         if not teacher.get('is_admin'):

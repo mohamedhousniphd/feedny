@@ -7,7 +7,6 @@ from stopwordsiso import stopwords
 from wordcloud import WordCloud
 import matplotlib
 import matplotlib.pyplot as plt
-import urllib.request
 import arabic_reshaper
 from bidi.algorithm import get_display
 

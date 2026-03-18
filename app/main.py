@@ -90,7 +90,6 @@ app.add_middleware(
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
-<<<<<<< HEAD
 # Template cache
 template_cache = {}
 
@@ -106,19 +105,6 @@ async def get_template(filepath: str) -> str:
     content = await asyncio.to_thread(read_file_sync)
     template_cache[filepath] = content
     return content
-=======
-# Template caching for performance
-template_cache = {}
-
-async def get_template(filepath: str) -> str:
-    """Async file reader with in-memory caching."""
-    if filepath not in template_cache:
-        def read_file():
-            with open(filepath, "r", encoding="utf-8") as f:
-                return f.read()
-        template_cache[filepath] = await asyncio.to_thread(read_file)
-    return template_cache[filepath]
->>>>>>> origin/bolt-template-caching-5151215034892835249
 
 
 # Initialize database on startup

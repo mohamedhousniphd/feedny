@@ -188,7 +188,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
             value=device_id,
             max_age=365*24*60*60,
             httponly=True,
-            samesite="lax"
+            secure=True,
+            samesite="strict"
         )
     
     # Set teacher code cookie for convenience
@@ -197,7 +198,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         value=code.upper(),
         max_age=30*24*60*60, # 30 days
         httponly=True,
-        samesite="lax"
+        secure=True,
+        samesite="strict"
     )
 
     return response
@@ -300,8 +302,9 @@ async def login(username: str = Form(...), password: str = Form(...), response: 
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=True,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        samesite="lax"
+        samesite="strict"
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
@@ -351,7 +354,8 @@ async def submit_feedback(
         value=device_id,
         max_age=365*24*60*60,
         httponly=True,
-        samesite="lax"
+        secure=True,
+        samesite="strict"
     )
 
     return FeedbackResponse(**feedback)

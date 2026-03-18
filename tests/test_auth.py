@@ -4,6 +4,7 @@ import calendar
 from datetime import datetime, timedelta
 import pytest
 from jose import jwt, JWTError
+from unittest.mock import patch
 
 from app.auth import (
     verify_password,
@@ -14,6 +15,8 @@ from app.auth import (
     ALGORITHM,
     pwd_context
 )
+
+# --- Real Token Tests ---
 
 def test_verify_password():
     password = "secret_password"
@@ -107,4 +110,45 @@ def test_decode_expired_access_token():
     token = create_access_token(data, expires_delta=timedelta(minutes=-10))
 
     decoded = decode_access_token(token)
+    assert decoded is None
+
+# --- Mocked JWT Tests ---
+
+@patch("app.auth.jwt.decode")
+@patch("app.auth.jwt.encode")
+def test_decode_access_token_valid(mock_encode, mock_decode):
+    """Test decoding a valid access token (mocked)."""
+    mock_encode.return_value = "mocked.token.string"
+    mock_decode.return_value = {"sub": "testuser", "exp": 1234567890}
+
+    data = {"sub": "testuser"}
+    token = create_access_token(data)
+    decoded = decode_access_token(token)
+
+    assert decoded is not None
+    assert decoded["sub"] == "testuser"
+    assert "exp" in decoded
+
+@patch("app.auth.jwt.decode")
+def test_decode_access_token_invalid_string(mock_decode):
+    """Test decoding an invalid string (mocked)."""
+    mock_decode.side_effect = JWTError("Invalid token")
+
+    token = "invalid.token.string"
+    decoded = decode_access_token(token)
+
+    assert decoded is None
+
+@patch("app.auth.jwt.decode")
+@patch("app.auth.jwt.encode")
+def test_decode_access_token_expired_mock(mock_encode, mock_decode):
+    """Test decoding an expired access token (mocked)."""
+    mock_encode.return_value = "mocked.expired.token"
+    mock_decode.side_effect = JWTError("Signature has expired")
+
+    data = {"sub": "testuser"}
+    # Create a token that expired 15 minutes ago
+    token = create_access_token(data, expires_delta=timedelta(minutes=-15))
+    decoded = decode_access_token(token)
+
     assert decoded is None

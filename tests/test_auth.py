@@ -52,6 +52,12 @@ def test_verify_password_type_handling():
     with pytest.raises(Exception):
         verify_password(12345, hashed)
 
+def test_verify_password_special_chars():
+    """Test password verification with special characters."""
+    password = "p@$$w0rd!#%^&*"
+    hashed = get_password_hash(password)
+    assert verify_password(password, hashed) is True
+
 def test_get_password_hash():
     password = "secret_password"
     hashed = get_password_hash(password)

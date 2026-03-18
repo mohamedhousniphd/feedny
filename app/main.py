@@ -159,6 +159,20 @@ async def get_current_teacher(request: Request) -> dict:
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Template Cache
+template_cache = {}
+
+async def get_template(path: str) -> str:
+    """Read a template from disk or cache it."""
+    if path not in template_cache:
+        def _read_file():
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+
+        template_cache[path] = await asyncio.to_thread(_read_file)
+
+    return template_cache[path]
+
 
 # Routes
 
@@ -171,8 +185,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-        content = await get_template("app/static/student_landing.html")
-        return HTMLResponse(content=content)
+        html_content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=html_content)
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -227,22 +241,22 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 @app.get("/login", response_class=HTMLResponse)
 async def login_page():
     """Login page."""
-    content = await get_template("app/static/login.html")
-    return HTMLResponse(content=content)
+    html_content = await get_template("app/static/login.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page():
     """Forgot password page."""
-    content = await get_template("app/static/forgot_password.html")
-    return HTMLResponse(content=content)
+    html_content = await get_template("app/static/forgot_password.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
-    content = await get_template("app/static/signup.html")
-    return HTMLResponse(content=content)
+    html_content = await get_template("app/static/signup.html")
+    return HTMLResponse(content=html_content)
 
 
 @app.get("/teacher", response_class=HTMLResponse)
@@ -897,8 +911,8 @@ async def admin_page(request: Request):
     except HTTPException:
         return Response(status_code=302, headers={"Location": "/login"})
 
-    content = await get_template("app/static/admin.html")
-    return HTMLResponse(content=content)
+    html_content = await get_template("app/static/admin.html")
+    return HTMLResponse(content=html_content)
 
 
 class CreditUpdate(FeedbackRequest.__base__):

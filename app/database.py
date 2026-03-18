@@ -7,6 +7,9 @@ import uuid
 
 DATABASE_URL = "feedny.db"
 
+# API Limit Logic
+DEVICE_FEEDBACK_LIMIT = 1
+
 
 @contextmanager
 def get_db():
@@ -176,7 +179,7 @@ def check_device_limit(device_id: str) -> tuple[bool, int]:
         row = cursor.fetchone()
         if row:
             count = row["feedback_count"]
-            return (count == 0, count)
+            return (count < DEVICE_FEEDBACK_LIMIT, count)
         return (True, 0)
 
 

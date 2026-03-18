@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Bo
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
@@ -176,13 +177,8 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
-<<<<<<< HEAD
         content = await get_template("app/static/student_landing.html")
         return HTMLResponse(content=content)
-=======
-        html_content = await get_template("app/static/student_landing.html")
-        return HTMLResponse(content=html_content)
->>>>>>> origin/bolt-template-caching-5151215034892835249
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -195,12 +191,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
-<<<<<<< HEAD
     html_content = await get_template("app/static/index.html")
-=======
-    html = await get_template("app/static/index.html")
-
->>>>>>> origin/bolt-template-caching-5151215034892835249
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
@@ -638,6 +629,22 @@ async def reset_database_endpoint(
         raise HTTPException(status_code=403, detail="Action réservée aux administrateurs")
 
 
+def _generate_csv(feedbacks_list: list) -> str:
+    """Helper to generate CSV from a list of feedback objects."""
+    import pandas as pd
+    if not feedbacks_list:
+        return ""
+    
+    # Create DataFrame
+    df = pd.DataFrame(feedbacks_list)
+    # Filter columns to export
+    columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
+    # Only keep columns that exist
+    df = df[[c for c in columns if c in df.columns]]
+
+    # Convert to CSV with UTF-8 BOM for Excel compatibility
+    return df.to_csv(index=False, encoding="utf-8-sig")
+
 @app.get("/api/export/csv")
 async def export_csv(
     request: Request,
@@ -645,8 +652,6 @@ async def export_csv(
     feedbacks: Optional[str] = Query(None)  # comma-separated IDs
 ):
     """Export feedbacks as CSV (teacher only)."""
-    import pandas as pd
-
     if feedbacks:
         # Export only selected feedbacks
         feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
@@ -660,15 +665,9 @@ async def export_csv(
     if not all_feedbacks:
         raise HTTPException(status_code=404, detail="Aucun feedback à exporter")
 
-    # Create DataFrame
-    df = pd.DataFrame(all_feedbacks)
-    # Filter columns to export
-    columns = ["id", "content", "device_id", "created_at", "included_in_analysis", "emotion"]
-    # Only keep columns that exist
-    df = df[[c for c in columns if c in df.columns]]
-
-    # Convert to CSV with UTF-8 BOM for Excel compatibility
-    csv_buffer = df.to_csv(index=False, encoding="utf-8-sig")
+    # Run blocking pandas CPU/IO operations in a threadpool
+    from fastapi.concurrency import run_in_threadpool
+    csv_buffer = await run_in_threadpool(_generate_csv, all_feedbacks)
 
     return Response(
         content=csv_buffer,

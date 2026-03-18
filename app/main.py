@@ -90,6 +90,7 @@ app.add_middleware(
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
 
+<<<<<<< HEAD
 # Template cache
 template_cache = {}
 
@@ -105,6 +106,19 @@ async def get_template(filepath: str) -> str:
     content = await asyncio.to_thread(read_file_sync)
     template_cache[filepath] = content
     return content
+=======
+# Template caching for performance
+template_cache = {}
+
+async def get_template(filepath: str) -> str:
+    """Async file reader with in-memory caching."""
+    if filepath not in template_cache:
+        def read_file():
+            with open(filepath, "r", encoding="utf-8") as f:
+                return f.read()
+        template_cache[filepath] = await asyncio.to_thread(read_file)
+    return template_cache[filepath]
+>>>>>>> origin/bolt-template-caching-5151215034892835249
 
 
 # Initialize database on startup
@@ -176,8 +190,13 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         
     # If still no code, serve landing page
     if not code:
+<<<<<<< HEAD
         content = await get_template("app/static/student_landing.html")
         return HTMLResponse(content=content)
+=======
+        html_content = await get_template("app/static/student_landing.html")
+        return HTMLResponse(content=html_content)
+>>>>>>> origin/bolt-template-caching-5151215034892835249
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -190,7 +209,12 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     device_id = get_device_id(request)
     can_submit, _ = check_device_limit(device_id)
 
+<<<<<<< HEAD
     html_content = await get_template("app/static/index.html")
+=======
+    html = await get_template("app/static/index.html")
+
+>>>>>>> origin/bolt-template-caching-5151215034892835249
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
@@ -508,11 +532,13 @@ async def analyze_feedbacks_endpoint(
         feedback_contents = [fb["content"] for fb in feedbacks]
         feedback_emotions = [fb.get("emotion") for fb in feedbacks]
 
-<<<<<<< HEAD
         # ⚡ BOLT OPTIMIZATION: Run WordCloud (CPU-bound in threadpool) and DeepSeek (I/O-bound) concurrently.
+        # Impact: Reduces total analysis time by running the ~2s wordcloud generation
+        # simultaneously with the ~3s LLM API call, saving ~40% overall time.
         async def generate_wordcloud_task():
             try:
                 from fastapi.concurrency import run_in_threadpool
+                # Use threadpool to prevent the synchronous CPU-bound task from blocking the event loop
                 result = await run_in_threadpool(create_wordcloud, feedbacks_text)
                 if result and result[0]:
                     return result[0]
@@ -523,23 +549,6 @@ async def analyze_feedbacks_endpoint(
         async def analyze_feedbacks_task():
             try:
                 summary = await analyze_feedbacks(
-=======
-        # ⚡ BOLT OPTIMIZATION: Run WordCloud (CPU-bound) and DeepSeek (I/O-bound) concurrently.
-        # Impact: Reduces total analysis time by running the ~2s wordcloud generation
-        # simultaneously with the ~3s LLM API call, saving ~40% overall time.
-        async def generate_wordcloud_task():
-            try:
-                # Use to_thread to prevent the synchronous CPU-bound task from blocking the event loop
-                result = await asyncio.to_thread(create_wordcloud, feedbacks_text)
-                return result[0] if result and result[0] else ""
-            except Exception as e:
-                print(f"Wordcloud error (non-fatal): {e}")
-                return ""
-
-        async def analyze_feedbacks_task():
-            try:
-                res = await analyze_feedbacks(
->>>>>>> origin/bolt-perf-optimization-16174181710714386424
                     feedbacks=feedback_contents,
                     context=request_data.context,
                     emotions=feedback_emotions

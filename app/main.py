@@ -62,7 +62,7 @@ from app.models import (
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks
 from datetime import timedelta
-from fastapi import Cookie, Query
+from fastapi import Query
 
 # Initialize FastAPI app
 app = FastAPI(title="Feedny", version="1.0.0")

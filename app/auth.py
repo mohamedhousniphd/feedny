@@ -1,6 +1,7 @@
 """Authentication logic for Feedny."""
 
 import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
@@ -8,7 +9,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 

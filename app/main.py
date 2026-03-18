@@ -724,6 +724,15 @@ async def upload_receipt(
     
     # Save file
     file_ext = os.path.splitext(file.filename)[1]
+
+    # Validate file extension to prevent unrestricted file upload
+    allowed_extensions = {".png", ".jpg", ".jpeg", ".pdf"}
+    if file_ext.lower() not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type de fichier non autorisé. Les extensions permises sont: {', '.join(allowed_extensions)}"
+        )
+
     filename = f"{uuid.uuid4()}{file_ext}"
     file_path = f"{UPLOAD_DIR}/{filename}"
     

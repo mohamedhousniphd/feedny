@@ -639,14 +639,6 @@ async def export_csv(
         }
     )
 
-    return Response(
-        content=csv_buffer,
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=feedny_feedbacks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        }
-    )
-
 
 # Health check endpoints for Railway serverless
 # Password Reset & Email

@@ -1,77 +1,68 @@
 import time
+import sqlite3
 import random
-from app.database import get_db, init_db
+from app.database import init_db, get_db, insert_feedback, create_teacher, get_all_feedbacks
 
-# Setup
+# Clean the database before tests
 def setup_data():
     init_db()
     with get_db() as conn:
         conn.execute("DELETE FROM feedbacks")
+        conn.execute("DELETE FROM teachers")
         conn.commit()
 
-        # Insert 10,000 feedbacks for teacher 1
-        for i in range(10000):
-            conn.execute("INSERT INTO feedbacks (content, device_id, emotion, teacher_id) VALUES (?, ?, ?, ?)",
-                         (f"Feedback {i}", "device1", 1, 1))
-        conn.commit()
+# Create a teacher and feedbacks
+setup_data()
+teacher_id = create_teacher("Test Teacher", "test@test.com", "hash", "CODE123")
 
-# Measure Suboptimal (Baseline from prompt)
-def suboptimal_fetch(teacher_id, feedback_ids):
-    from app.database import get_all_feedbacks
-    all_feedbacks = get_all_feedbacks(teacher_id)
-    # List check O(N)
-    selected = [fb for fb in all_feedbacks if fb['id'] in feedback_ids]
-    return selected
-
-# Measure Optimal
-def optimal_fetch(teacher_id, feedback_ids):
-    from app.database import get_db
-    if not feedback_ids:
-        return []
-    with get_db() as conn:
-        placeholders = ','.join('?' * len(feedback_ids))
-        cursor = conn.execute(
-            f"SELECT id, content, device_id, created_at, included_in_analysis, emotion, teacher_id "
-            f"FROM feedbacks WHERE teacher_id = ? AND id IN ({placeholders})",
-            [teacher_id] + feedback_ids
+print("Inserting 10,000 feedbacks...")
+with get_db() as conn:
+    for i in range(10000):
+        # Use emotion as integer if required by schema, or string if supported
+        conn.execute(
+            "INSERT INTO feedbacks (content, device_id, emotion, teacher_id) VALUES (?, ?, ?, ?)",
+            (f"Feedback {i}", f"dev_{i}", 1, teacher_id)
         )
-        return [dict(row) for row in cursor.fetchall()]
+    conn.commit()
 
-def run_benchmark():
-    print("Setting up data...")
-    setup_data()
+# Get some random feedback IDs to select
+with get_db() as conn:
+    cursor = conn.execute("SELECT id FROM feedbacks WHERE teacher_id = ? LIMIT 500", (teacher_id,))
+    feedback_ids_to_select = [row['id'] for row in cursor.fetchall()]
 
-    # We want to select 100 random feedbacks out of 10,000
-    with get_db() as conn:
-        cursor = conn.execute("SELECT id FROM feedbacks WHERE teacher_id = 1")
-        all_ids = [row[0] for row in cursor.fetchall()]
-
-    target_ids = random.sample(all_ids, 100)
-
-    # Warmup
-    _ = suboptimal_fetch(1, target_ids)
-    _ = optimal_fetch(1, target_ids)
-
-    # Multiple runs
-    iterations = 50
-
-    print("Running baseline (Suboptimal O(N) filtering)...")
+def unoptimized_approach():
     start = time.perf_counter()
-    for _ in range(iterations):
-        res1 = suboptimal_fetch(1, target_ids)
+    all_feedbacks = get_all_feedbacks(teacher_id)
+    selected_feedbacks = [fb for fb in all_feedbacks if fb['id'] in feedback_ids_to_select]
     end = time.perf_counter()
-    t_suboptimal = (end - start) / iterations
-    print(f"Baseline Avg Time: {t_suboptimal:.6f}s")
+    return end - start, len(selected_feedbacks)
 
-    print("Running optimized (SQLite query)...")
+def semi_optimized_approach():
     start = time.perf_counter()
-    for _ in range(iterations):
-        res2 = optimal_fetch(1, target_ids)
+    all_feedbacks = get_all_feedbacks(teacher_id)
+    feedback_ids_set = set(feedback_ids_to_select)
+    selected_feedbacks = [fb for fb in all_feedbacks if fb['id'] in feedback_ids_set]
     end = time.perf_counter()
-    t_optimal = (end - start) / iterations
-    print(f"Optimized Avg Time: {t_optimal:.6f}s")
+    return end - start, len(selected_feedbacks)
 
-    print(f"Improvement: {t_suboptimal / t_optimal:.2f}x faster")
+def fully_optimized_approach():
+    start = time.perf_counter()
+    from app.database import get_feedbacks_by_ids_and_teacher
+    selected_feedbacks = get_feedbacks_by_ids_and_teacher(feedback_ids_to_select, teacher_id)
+    end = time.perf_counter()
+    return end - start, len(selected_feedbacks)
 
 if __name__ == "__main__":
-    run_benchmark()
+    print("Running unoptimized...")
+    t1, c1 = unoptimized_approach()
+    
+    print("Running semi-optimized (set)...")
+    t2, c2 = semi_optimized_approach()
+    
+    print("Running fully optimized (SQLite)...")
+    t3, c3 = fully_optimized_approach()
+    
+    print(f"Unoptimized time: {t1:.6f}s (count: {c1})")
+    print(f"Semi-optimized time: {t2:.6f}s (count: {c2})")
+    print(f"Fully optimized time: {t3:.6f}s (count: {c3})")
+    print(f"Improvement (Unoptimized vs Fully Optimized): {t1/t3:.2f}x faster")

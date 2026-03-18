@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Tuple, Optional
 from app.services.wordcloud import create_wordcloud
 from app.services.deepseek import analyze_feedbacks
 
-async def generate_analysis_content(
+async def process_feedback_analysis(
     feedbacks: List[Dict[str, Any]],
     context: Optional[str] = None
 ) -> Tuple[str, str]:
@@ -26,6 +26,7 @@ async def generate_analysis_content(
     async def get_wordcloud() -> str:
         try:
             # Wordcloud is synchronous and CPU-intensive, offload to threadpool
+            # create_wordcloud is imported from app.services.wordcloud
             result = await asyncio.to_thread(create_wordcloud, feedbacks_text)
             if result and result[0]:
                 return result[0]

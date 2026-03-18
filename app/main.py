@@ -1,4 +1,3 @@
-```python
 import html
 import os
 import sys
@@ -51,7 +50,6 @@ from app.database import (
     save_analysis,
     get_analysis_history
 )
-from app.services.analysis import generate_analysis_content
 from app.models import (
     FeedbackRequest,
     FeedbackResponse,
@@ -65,6 +63,7 @@ from app.models import (
     ImportFeedbackItem,
     ReceiptApprovalRequest
 )
+from app.services.analysis import process_feedback_analysis
 
 # Initialize FastAPI app
 app = FastAPI(title="Feedny", version="1.0.0")
@@ -499,11 +498,8 @@ async def analyze_feedbacks_endpoint(
             if fb.get('teacher_id') and fb['teacher_id'] != teacher['id']:
                 raise HTTPException(status_code=403, detail="Accès non autorisé à certains feedbacks")
 
-        # Core feedback analysis and processing logic extracted to service
-        summary, wordcloud_base64 = await generate_analysis_content(
-            feedbacks=feedbacks,
-            context=request_data.context
-        )
+        # Process feedback analysis (wordcloud and DeepSeek AI analysis)
+        summary, wordcloud_base64 = await process_feedback_analysis(feedbacks, request_data.context)
         
         # Deduct credit if not admin
         if not teacher.get('is_admin'):

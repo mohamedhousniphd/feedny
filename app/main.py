@@ -8,7 +8,6 @@ from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Bo
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
 
 import asyncio
 

@@ -169,7 +169,7 @@ def get_feedbacks_by_ids_and_teacher(feedback_ids: list[int], teacher_id: int) -
     with get_db() as conn:
         placeholders = ','.join('?' * len(feedback_ids))
         query = f"""
-            SELECT id, content, device_id, created_at, included_in_analysis, emotion
+            SELECT id, content, device_id, created_at, included_in_analysis, emotion, teacher_id
             FROM feedbacks
             WHERE teacher_id = ? AND id IN ({placeholders})
             ORDER BY created_at DESC

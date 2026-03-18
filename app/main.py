@@ -654,9 +654,14 @@ async def export_csv(
     """Export feedbacks as CSV (teacher only)."""
     if feedbacks:
         # Export only selected feedbacks
-        feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
+        try:
+            feedback_ids = [int(id.strip()) for id in feedbacks.split(",") if id.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Identifiants de feedback invalides (doivent être des nombres)")
+
         if not feedback_ids:
             raise HTTPException(status_code=400, detail="Aucun ID de feedback valide fourni")
+        
         all_feedbacks = get_feedbacks_by_ids_and_teacher(feedback_ids, teacher['id'])
     else:
         # Export all feedbacks for the teacher
@@ -668,6 +673,14 @@ async def export_csv(
     # Run blocking pandas CPU/IO operations in a threadpool
     from fastapi.concurrency import run_in_threadpool
     csv_buffer = await run_in_threadpool(_generate_csv, all_feedbacks)
+
+    return Response(
+        content=csv_buffer,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=feedny_feedbacks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    )
 
     return Response(
         content=csv_buffer,

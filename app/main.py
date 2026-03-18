@@ -91,13 +91,22 @@ async def startup_event():
 def sync_admin_account():
     """Ensure the main admin account exists and matches environment variables."""
     admin_email = "mohamedhousni@afeedny.com"
-    # Read password from environment, default to 'password123' if not set
-    admin_password = os.getenv("TEACHER_PASSWORD", "password123")
     
-    admin_hash = get_password_hash(admin_password)
+    # Read password from environment
+    env_password = os.getenv("TEACHER_PASSWORD")
     
     existing = get_teacher_by_email(admin_email)
+
     if not existing:
+        if env_password:
+            admin_password = env_password
+        else:
+            import secrets
+            admin_password = secrets.token_urlsafe(16)
+            print(f"WARNING: TEACHER_PASSWORD not set. Generated secure random password for admin '{admin_email}': {admin_password}")
+
+        admin_hash = get_password_hash(admin_password)
+
         # Create default admin with a fixed code
         create_teacher("Mohamed HOUSNI", admin_email, admin_hash, "ADMIN", is_admin=True)
         # We don't have the ID here directly without re-querying, 
@@ -107,8 +116,10 @@ def sync_admin_account():
         if new_admin:
             add_credits(new_admin['id'], 1000)
     else:
-        # Check if password needs synchronization (or just update it to be safe)
-        update_teacher_password(admin_email, admin_hash)
+        # Only update the password if explicitly set in the environment
+        if env_password:
+            admin_hash = get_password_hash(env_password)
+            update_teacher_password(admin_email, admin_hash)
 
 
 def get_device_id(request: Request) -> str:

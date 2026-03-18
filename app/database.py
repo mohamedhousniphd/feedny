@@ -226,30 +226,36 @@ def import_feedbacks(feedbacks_data: list[dict]) -> int:
     if not feedbacks_data:
         return 0
     
-    imported_count = 0
-    with get_db() as conn:
-        for fb in feedbacks_data:
-            device_id = fb.get('device_id') or str(uuid.uuid4())
-            created_at = fb.get('created_at')
-            emotion = fb.get('emotion')
-            included = 1 if fb.get('included_in_analysis') else 0
-            teacher_id = fb.get('teacher_id', 1)  # Default to admin if missing, though main.py injects it
+    with_created_at = []
+    without_created_at = []
+
+    for fb in feedbacks_data:
+        device_id = fb.get('device_id') or str(uuid.uuid4())
+        created_at = fb.get('created_at')
+        emotion = fb.get('emotion')
+        included = 1 if fb.get('included_in_analysis') else 0
+        teacher_id = fb.get('teacher_id', 1)  # Default to admin if missing, though main.py injects it
+
+        if created_at:
+            with_created_at.append((fb['content'], device_id, created_at, included, emotion, teacher_id))
+        else:
+            without_created_at.append((fb['content'], device_id, included, emotion, teacher_id))
             
-            if created_at:
-                conn.execute(
-                    """INSERT INTO feedbacks (content, device_id, created_at, included_in_analysis, emotion, teacher_id)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (fb['content'], device_id, created_at, included, emotion, teacher_id)
-                )
-            else:
-                conn.execute(
-                    """INSERT INTO feedbacks (content, device_id, included_in_analysis, emotion, teacher_id)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (fb['content'], device_id, included, emotion, teacher_id)
-                )
-            imported_count += 1
+    with get_db() as conn:
+        if with_created_at:
+            conn.executemany(
+                """INSERT INTO feedbacks (content, device_id, created_at, included_in_analysis, emotion, teacher_id)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                with_created_at
+            )
+        if without_created_at:
+            conn.executemany(
+                """INSERT INTO feedbacks (content, device_id, included_in_analysis, emotion, teacher_id)
+                   VALUES (?, ?, ?, ?, ?)""",
+                without_created_at
+            )
         conn.commit()
-    return imported_count
+    return len(feedbacks_data)
 
 
 def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:

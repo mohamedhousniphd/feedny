@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, Body, File, UploadFile
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 

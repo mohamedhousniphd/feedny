@@ -102,23 +102,20 @@ body {
     .header {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
+        gap: 12px;
         padding-bottom: 16px;
     }
     .header h1 {
-        font-size: 1.5rem;
-        word-break: break-word;
+        font-size: 1.15rem; /* Even smaller for very narrow screens */
+        text-align: center;
+        margin-bottom: 8px;
+        overflow-wrap: break-word;
     }
     .header-controls {
         width: 100%;
         justify-content: center;
         flex-wrap: wrap;
         gap: 8px;
-    }
-    .header h1 {
-        font-size: 1.25rem;
-        text-align: center;
-        margin-bottom: 8px;
     }
 }
 
@@ -491,27 +488,28 @@ footer.footer .version {
 @media (max-width: 600px) {
     .emoji-picker {
         grid-template-columns: repeat(5, 1fr);
-        gap: 6px;
-        padding: 12px 8px;
-        max-width: 340px;
+        gap: 4px; /* Tighter gap */
+        padding: 8px;
+        width: 100%;
+        max-width: 310px; /* Force it to fit standard narrow screens (320px) */
         margin: 0 auto;
     }
     .emoji-btn {
         width: 100%;
         aspect-ratio: 1/1;
         height: auto;
-        font-size: 1.25rem;
+        font-size: 1.15rem; /* Dialed down for safety */
         padding: 0;
     }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 360px) {
     .emoji-picker {
-        gap: 4px;
-        padding: 8px 4px;
+        max-width: 280px;
+        gap: 3px;
     }
     .emoji-btn {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
 }
 

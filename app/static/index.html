@@ -10,10 +10,10 @@
 </head>
 
 <body>
-    <div class="container">
-        <header class="header">
+    <div class="container container-md">
+        <header class="header header-centered border-bottom-0 pb-0">
             <h1>Afeedny</h1>
-            <div class="header-controls">
+            <div class="header-controls mt-2">
                 <a href="/api/student/logout" class="btn btn-sm btn-secondary">Changer de cours</a>
             </div>
         </header>
@@ -23,17 +23,17 @@
                 <h2 id="teacher-question" class="m-0">{{question}}</h2>
             </div>
 
-            <div class="card">
-                <div class="form-group">
-                    <label for="feedback-content">Votre feedback</label>
-                    <textarea id="feedback-content" maxlength="240" placeholder="Partagez vos pensées... (max 240 caractères)" rows="5"></textarea>
+            <div class="card text-center">
+                <div class="form-group mb-6">
+                    <label for="feedback-content" class="text-center w-full">Votre feedback</label>
+                    <textarea id="feedback-content" maxlength="240" placeholder="Partagez vos pensées..." rows="5"></textarea>
                     <div class="text-center mt-2">
-                        <span id="current-chars" class="text-xs text-muted">0</span><span class="text-xs text-muted">/240</span>
+                        <span id="current-chars">0</span>/240
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Comment vous sentez-vous ?</label>
+                <div class="form-group mb-8">
+                    <label class="text-center w-full">Comment vous sentez-vous ?</label>
                     <div class="emoji-picker" id="emoji-picker">
                         <div class="emoji-row">
                             <button type="button" class="btn emoji-btn" data-emotion="1" title="Très triste">😢</button>
@@ -76,6 +76,75 @@
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
         <span class="version">v1.2.2</span>
     </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const textarea = document.getElementById('feedback-content');
+            const charCount = document.getElementById('current-chars');
+            const emojiButtons = document.querySelectorAll('.emoji-btn');
+            const selectedEmotionInput = document.getElementById('selected-emotion');
+            const submitBtn = document.getElementById('submit-btn');
+
+            // Character count
+            textarea.addEventListener('input', () => {
+                charCount.textContent = textarea.value.length;
+            });
+
+            // Emoji selection
+            emojiButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    emojiButtons.forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedEmotionInput.value = btn.dataset.emotion;
+                });
+            });
+
+            // Submit feedback
+            submitBtn.addEventListener('click', async () => {
+                const content = textarea.value.trim();
+                const emotion = selectedEmotionInput.value;
+
+                if (!content) {
+                    alert('Veuillez entrer un commentaire');
+                    return;
+                }
+                if (!emotion) {
+                    alert('Veuillez sélectionner une humeur');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Envoi...';
+
+                try {
+                    const response = await fetch('/api/feedbacks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, emotion: parseInt(emotion) })
+                    });
+
+                    if (response.ok) {
+                        document.getElementById('feedback-form').classList.add('hidden');
+                        document.getElementById('success-message').classList.remove('hidden');
+                    } else {
+                        const data = await response.json();
+                        if (response.status === 400 && data.detail === "Feedback already submitted for this session") {
+                             document.getElementById('feedback-form').classList.add('hidden');
+                             document.getElementById('already-submitted').classList.remove('hidden');
+                        } else {
+                            alert(data.detail || 'Erreur lors de l\'envois');
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Envoyer mon feedback';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Erreur de connexion');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Envoyer mon feedback';
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

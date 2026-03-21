@@ -12,9 +12,9 @@
 <body>
     <div class="container">
         <!-- Header -->
-        <header class="header">
+        <header class="header header-centered border-bottom-0 pb-0">
             <h1>Dashboard — {{name}}</h1>
-            <div class="header-controls">
+            <div class="header-controls mt-2">
                 <div class="code-display" title="Code d'invitation étudiant">
                     Code: <strong id="teacher-code-display">{{unique_code}}</strong>
                     <button id="edit-code-btn" class="btn btn-sm btn-secondary" title="Modifier le code">✏️</button>
@@ -29,7 +29,7 @@
         </header>
 
         <!-- Stats -->
-        <div class="stats">
+        <div class="stats mb-8">
             <div class="stat-card">
                 <div class="stat-label">Feedbacks Totaux</div>
                 <div class="stat-number" id="total-feedbacks">0</div>
@@ -41,7 +41,7 @@
         </div>
 
         <!-- Quick Actions -->
-        <section class="actions">
+        <section class="actions text-center border-top pt-6">
             <button id="refresh-btn" class="btn btn-secondary">🔄 Rafraîchir</button>
             <button id="export-csv-btn" class="btn btn-secondary">📥 Exporter CSV</button>
             <button id="export-json-btn" class="btn btn-secondary">💾 Exporter JSON</button>
@@ -98,9 +98,6 @@
         </section>
 
         <!-- Results Display -->
-        <section id="results-section" class="hidden">
-            <h2>Résultats de l'analyse</h2>
-            <div class="card">
         <section id="results-section" class="hidden">
             <h2>Résultats de l'analyse</h2>
             <div class="card">

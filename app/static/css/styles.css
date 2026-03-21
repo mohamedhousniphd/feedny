@@ -491,10 +491,15 @@ footer.footer .version {
 .mt-6 { margin-top: 24px !important; }
 .mt-8 { margin-top: 32px !important; }
 .mb-6 { margin-bottom: 24px !important; }
+.mb-8 { margin-bottom: 32px !important; }
+.mb-10 { margin-bottom: 40px !important; }
 
 .p-0 { padding: 0 !important; }
+.pb-0 { padding-bottom: 0 !important; }
 .p-4 { padding: 16px !important; }
 .p-6 { padding: 24px !important; }
+
+.border-bottom-0 { border-bottom: none !important; }
 
 .container-tight { max-width: 480px; margin: 0 auto; }
 .container-md { max-width: 600px; margin: 0 auto; }
@@ -591,8 +596,8 @@ input::placeholder, textarea::placeholder {
 
 .emoji-row {
     display: flex;
-    gap: 12px;
-    justify-content: space-between;
+    gap: 16px;
+    justify-content: center;
     width: 100%;
 }
 

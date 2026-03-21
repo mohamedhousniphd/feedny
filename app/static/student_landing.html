@@ -10,23 +10,26 @@
 </head>
 
 <body>
-    <div class="container">
+    <div class="container" style="max-width: 480px; margin: 0 auto;">
         <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
-            <h1>Afeedny</h1>
-            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Rejoindre une session de feedback</p>
+            <h1>Rejoindre un cours</h1>
+            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Entrez le code de votre professeur</p>
         </header>
 
-        <section style="max-width: 480px; margin: 0 auto;">
-            <div class="card">
-                <form id="code-form">
-                    <div class="form-group">
-                        <label for="code">Code Enseignant</label>
-                        <input type="text" id="code" style="font-size: 1.5rem; letter-spacing: 0.2em; text-align: center; text-transform: uppercase;" required maxlength="10" placeholder="CODE">
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Accéder au formulaire</button>
-                </form>
-            </div>
+        <section class="card">
+            <form id="join-form">
+                <div class="form-group">
+                    <label for="code">Code du cours</label>
+                    <input type="text" id="code" required placeholder="Ex: MATH101" autofocus>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Rejoindre</button>
+            </form>
         </section>
+
+        <footer class="footer">
+            <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
+            <span class="version">v1.2.0</span>
+        </footer>
     </div>
 
     <script>

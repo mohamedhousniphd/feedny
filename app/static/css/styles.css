@@ -510,6 +510,9 @@ footer.footer .version {
 .bg-muted { background-color: var(--color-background) !important; }
 .border-top { border-top: 1px solid var(--color-border) !important; }
 
+.d-block { display: block !important; }
+.d-inline-block { display: inline-block !important; }
+.d-none { display: none !important; }
 .d-flex { display: flex !important; }
 .flex-column { flex-direction: column !important; }
 .justify-center { justify-content: center !important; }

@@ -101,16 +101,19 @@ body {
 @media (max-width: 768px) {
     .header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 16px;
+        padding-bottom: 16px;
     }
     .header h1 {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
+        word-break: break-word;
     }
     .header-controls {
         width: 100%;
+        justify-content: space-between;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 12px;
     }
 }
 
@@ -410,12 +413,30 @@ tr:last-child td {
 }
 
 /* Footer */
-footer {
+footer.footer {
     padding: 32px 24px;
+    margin-top: auto;
     border-top: 1px solid var(--color-border);
     text-align: center;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     color: var(--color-text-muted);
+}
+
+footer.footer a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+footer.footer a:hover {
+    text-decoration: underline;
+}
+
+footer.footer .version {
+    display: block;
+    margin-top: 8px;
+    opacity: 0.7;
+    font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 /* Utility */
@@ -431,26 +452,24 @@ footer {
 
 @media (max-width: 600px) {
     .emoji-picker {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
         gap: 8px;
         padding: 12px;
     }
     .emoji-btn {
         width: 100%;
-        max-width: 48px;
-        height: 48px;
+        aspect-ratio: 1/1;
+        height: auto;
         font-size: 1.5rem;
     }
 }
 
 @media (max-width: 380px) {
     .emoji-picker {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
         gap: 6px;
     }
     .emoji-btn {
-        max-width: 42px;
-        height: 42px;
         font-size: 1.25rem;
     }
 }

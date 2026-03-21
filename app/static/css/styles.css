@@ -479,44 +479,55 @@ footer.footer .version {
 
 /* Emoji Picker Custom Styling */
 .emoji-picker {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 12px;
     padding: 24px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.emoji-row {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    width: 100%;
 }
 
 @media (max-width: 600px) {
     .emoji-picker {
-        grid-template-columns: repeat(5, 1fr);
-        gap: 4px; /* Tighter gap */
-        padding: 8px;
-        width: 100%;
-        max-width: 310px; /* Force it to fit standard narrow screens (320px) */
-        margin: 0 auto;
+        gap: 8px;
+        padding: 16px 4px;
+    }
+    .emoji-row {
+        gap: 6px;
     }
     .emoji-btn {
         width: 100%;
         aspect-ratio: 1/1;
         height: auto;
-        font-size: 1.15rem; /* Dialed down for safety */
+        font-size: 1.25rem;
         padding: 0;
     }
 }
 
 @media (max-width: 360px) {
     .emoji-picker {
-        max-width: 280px;
-        gap: 3px;
+        gap: 6px;
+        padding: 12px 2px;
+    }
+    .emoji-row {
+        gap: 4px;
     }
     .emoji-btn {
-        font-size: 1rem;
+        font-size: 1.1rem;
     }
 }
 
 .emoji-btn {
-    width: 64px;
-    height: 64px;
-    font-size: 2rem;
+    flex: 1; /* Force equal width */
+    min-width: 0; /* Allow shrinking below content size */
+    aspect-ratio: 1/1;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Afeedny - Partagez votre feedback</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.1">
+    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
 </head>
 
 <body>
@@ -35,16 +35,20 @@
                 <div class="form-group">
                     <label>Comment vous sentez-vous ?</label>
                     <div class="emoji-picker" id="emoji-picker">
-                        <button type="button" class="btn emoji-btn" data-emotion="1" title="Très triste">😢</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="2" title="Triste">😔</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="3" title="Déçu">😕</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="4" title="Neutre">😐</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="5" title="Content">🙂</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="6" title="Satisfait">😊</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="7" title="Heureux">😃</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="8" title="Très heureux">😄</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="9" title="Ravi">🤩</button>
-                        <button type="button" class="btn emoji-btn" data-emotion="10" title="Euphorique">🥳</button>
+                        <div class="emoji-row">
+                            <button type="button" class="btn emoji-btn" data-emotion="1" title="Très triste">😢</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="2" title="Triste">😔</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="3" title="Déçu">😕</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="4" title="Neutre">😐</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="5" title="Content">🙂</button>
+                        </div>
+                        <div class="emoji-row">
+                            <button type="button" class="btn emoji-btn" data-emotion="6" title="Satisfait">😊</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="7" title="Heureux">😃</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="8" title="Très heureux">😄</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="9" title="Ravi">🤩</button>
+                            <button type="button" class="btn emoji-btn" data-emotion="10" title="Euphorique">🥳</button>
+                        </div>
                     </div>
                     <input type="hidden" id="selected-emotion" value="">
                 </div>

@@ -108,9 +108,9 @@
                     <h3>Résumé de l'IA</h3>
                     <div id="summary-text"></div>
                 </div>
-                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <div class="results-actions">
                     <button id="download-wordcloud-btn" class="btn btn-secondary">Télécharger le Wordcloud</button>
-                    <button id="download-pdf-btn" class="btn btn-primary" style="background-color: var(--color-error); border-color: var(--color-error);">Télécharger PDF</button>
+                    <button id="download-pdf-btn" class="btn btn-primary btn-danger-alt">Télécharger PDF</button>
                 </div>
             </div>
         </section>
@@ -589,7 +589,7 @@
                 }
                 noHistory.style.display = 'none';
 
-                let html = `<table>
+                let html = `<div class="table-container"><table>
                     <thead>
                         <tr>
                             <th>Date</th>
@@ -624,7 +624,7 @@
                         </tr>`;
                 });
 
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
                 container.innerHTML = html;
 
                 // Store analysis data for download

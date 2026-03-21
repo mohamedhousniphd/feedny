@@ -7,34 +7,6 @@
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Administration - Afeedny</title>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <style>
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        .admin-table th,
-        .admin-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .admin-table th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-        }
-
-        .credit-btn {
-            background-color: var(--color-success);
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-    </style>
 </head>
 
 <body>
@@ -66,7 +38,7 @@
             
             <section>
                 <div class="table-container">
-                    <table class="admin-table">
+                    <table>
                         <thead>
                             <tr>
                                 <th>Nom</th>
@@ -99,7 +71,7 @@
             <section>
                 <h2>Reçus en attente</h2>
                 <div class="table-container">
-                    <table class="admin-table">
+                    <table>
                         <thead>
                             <tr>
                                 <th width="100">Date</th>
@@ -122,7 +94,7 @@
             <section>
                 <h2>Gestion des Utilisateurs</h2>
                 <div class="table-container">
-                    <table class="admin-table">
+                    <table>
                         <thead>
                             <tr>
                                 <th>Nom</th>
@@ -163,8 +135,8 @@
                         <td>${t.unique_code}</td>
                         <td>${t.is_admin ? '∞' : t.credits}</td>
                         <td>
-                            <button class="credit-btn" onclick="addCredits('${t.email}', 5)">+5 Crédits</button>
-                            <button class="credit-btn" style="background-color: #fca5a5;" onclick="addCredits('${t.email}', -1)">-1</button>
+                            <button class="btn btn-sm btn-success" onclick="addCredits('${t.email}', 5)">+5 Crédits</button>
+                            <button class="btn btn-sm btn-danger" style="background-color: #fca5a5;" onclick="addCredits('${t.email}', -1)">-1</button>
                         </td>
                     </tr>
                 `).join('');
@@ -198,7 +170,7 @@
                         <td><span class="status-${r.status}">${getStatusLabel(r.status)}</span></td>
                         <td>
                             ${r.status === 'pending' ? `
-                                <button class="credit-btn" onclick="approveReceipt(${r.id})">Valider</button>
+                                <button class="btn btn-sm btn-success" onclick="approveReceipt(${r.id})">Valider</button>
                                 <button class="btn btn-danger btn-sm" onclick="rejectReceipt(${r.id})">Rejeter</button>
                             ` : ''}
                         </td>

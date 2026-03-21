@@ -3,67 +3,21 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Acheter des Crédits - Afeedny</title>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <style>
-        .pricing-card {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
-            margin: 40px auto;
-        }
-
-        .price {
-            font-size: 48px;
-            font-weight: bold;
-            color: var(--color-primary);
-            margin: 20px 0;
-        }
-
-        .features-list {
-            list-style: none;
-            padding: 0;
-            margin: 20px 0;
-            text-align: left;
-        }
-
-        .features-list li {
-            padding: 10px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .features-list li:before {
-            content: "✅";
-            margin-right: 10px;
-        }
-
-        .payment-instructions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: left;
-        }
-    </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>💎 Rechargez vos crédits</h1>
-            <p class="subtitle">Obtenez plus d'analyses IA pour vos cours</p>
-        </div>
+    <div class="container" style="max-width: 600px; margin: 0 auto;">
+        <header class="header">
+            <h1>Recharger mes crédits</h1>
+        </header>
 
-        <div class="pricing-card">
-            <h2>Recharger vos crédits</h2>
-
-            <div id="instructions-container" class="payment-instructions">
-                <h3>Instructions de Paiement</h3>
+        <section class="card">
+            <h2>Instructions de Paiement</h2>
+            <div id="instructions-container" class="badge" style="display: block; padding: 16px; margin: 16px 0; line-height: 1.6; text-align: left; background-color: var(--color-background);">
                 <p id="payment-text">Chargement des instructions...</p>
             </div>
 
@@ -79,12 +33,12 @@
                 </form>
             </div>
 
-            <div style="margin-top: 20px;">
-                <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
+            <div style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 24px; text-align: center;">
+                <a href="/teacher/dashboard" class="btn btn-secondary" style="width: 100%;">Retour au Dashboard</a>
             </div>
-        </div>
-
-        <script>
+        </section>
+    </div>
+     <script>
             document.addEventListener('DOMContentLoaded', async () => {
                 // Load instructions
                 try {

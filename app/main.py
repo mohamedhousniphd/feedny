@@ -66,7 +66,17 @@ from app.models import (
 from app.services.analysis import process_feedback_analysis
 
 # Initialize FastAPI app
-app = FastAPI(title="Feedny", version="1.0.0")
+APP_VERSION = "1.2.4"
+app = FastAPI(title="Feedny", version=APP_VERSION)
+
+def inject_common(html_content: str) -> str:
+    """Inject common template variables like version."""
+    import re
+    # Replace version in CSS links and footers
+    html_content = re.sub(r'\{\{\s*version\s*\}\}', APP_VERSION, html_content)
+    # Also handle the old hardcoded versions if they exist (fail-safe)
+    html_content = re.sub(r'\?v=v?[\d\.]+', f'?v={APP_VERSION}', html_content)
+    return html_content
 
 
 # CORS middleware
@@ -186,7 +196,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     # If still no code, serve landing page
     if not code:
         html_content = await get_template("app/static/student_landing.html")
-        return HTMLResponse(content=html_content)
+        return HTMLResponse(content=inject_common(html_content))
             
     # Verify code
     teacher = get_teacher_by_code(code.upper())
@@ -208,9 +218,13 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(str(device_id)), html_content)
     html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
     html_content = re.sub(r'\{\{\s*question\s*\}\}', html.escape(str(question)), html_content)
+    
+    # Common injections (version, etc.)
+    html_content = inject_common(html_content)
+
     # Personalize header with escaping
-    html_content = html_content.replace('Feedny', f"Afeedny - {html.escape(str(teacher['name']))}")
-    html_content = html_content.replace('Afeedny', f"Afeedny - {html.escape(str(teacher['name']))}")
+    html_content = html_content.replace('Feedny', f"Afeedny — {html.escape(str(teacher['name']))}")
+    html_content = html_content.replace('Afeedny', f"Afeedny — {html.escape(str(teacher['name']))}")
 
     response = Response(content=html_content, media_type="text/html")
 
@@ -242,21 +256,21 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
 async def login_page():
     """Login page."""
     html_content = await get_template("app/static/login.html")
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(content=inject_common(html_content))
 
 
 @app.get("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_page():
     """Forgot password page."""
     html_content = await get_template("app/static/forgot_password.html")
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(content=inject_common(html_content))
 
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
     """Signup page."""
     html_content = await get_template("app/static/signup.html")
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(content=inject_common(html_content))
 
 
 @app.get("/teacher", response_class=HTMLResponse)
@@ -277,7 +291,7 @@ async def teacher_dashboard(request: Request):
     credits_display = '∞' if teacher['is_admin'] else str(teacher['credits'])
     html_content = html_content.replace('{{credits}}', html.escape(credits_display))
 
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(content=inject_common(html_content))
 
 
 # Auth API
@@ -716,7 +730,9 @@ async def reset_password_page(token: str):
     # Let's assume we create 'reset_password.html'
     html_content = await get_template("app/static/reset_password.html")
     # Inject token into JS
+    # Inject token and common data
     html_content = html_content.replace('{{token}}', html.escape(str(token)))
+    html_content = inject_common(html_content)
     return HTMLResponse(content=html_content)
 
 

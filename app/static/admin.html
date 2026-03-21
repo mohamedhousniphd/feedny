@@ -6,19 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Administration - Afeedny</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v={{version}}">
 </head>
 
 <body>
     <div class="container">
-        <header class="header">
+        <header class="header header-centered border-bottom-0 pb-0">
             <h1>Administration</h1>
-            <div class="header-controls">
+            <div class="header-controls mt-2">
                 <a href="/teacher/dashboard" class="btn btn-secondary">Retour au Dashboard</a>
             </div>
         </header>
 
-        <section class="actions mb-8">
+        <section class="actions d-flex justify-center gap-2 flex-wrap mb-8">
             <button class="btn btn-primary" onclick="showTab('credits')">Gestion Crédits</button>
             <button class="btn btn-secondary" onclick="showTab('receipts')">Validation Paiements</button>
             <button class="btn btn-secondary" onclick="showTab('users')">Utilisateurs</button>
@@ -27,10 +27,10 @@
         <!-- Section Crédits -->
         <div id="tab-credits" class="section-tab">
             <section>
-                <h2>Gestion des Crédits</h2>
-                <div class="card">
-                    <div class="form-group d-flex gap-2 ai-end">
-                        <input type="text" id="search-email" placeholder="Rechercher par email..." class="max-w-md">
+                <h2 class="text-center">Gestion des Crédits</h2>
+                <div class="card text-center">
+                    <div class="form-group d-flex justify-center gap-2 ai-end">
+                        <input type="text" id="search-email" placeholder="Rechercher par email..." class="max-w-md text-center">
                         <button id="search-btn" class="btn btn-secondary">Rechercher</button>
                     </div>
                 </div>
@@ -59,12 +59,12 @@
         <!-- Section Reçus -->
         <div id="tab-receipts" class="section-tab hidden">
             <section>
-                <h2>Instructions de Paiement</h2>
-                <div class="card">
+                <h2 class="text-center">Instructions de Paiement</h2>
+                <div class="card text-center">
                     <div class="form-group">
-                        <textarea id="payment-instructions" rows="4" placeholder="Instructions pour les enseignants (RIB, etc.)"></textarea>
+                        <textarea id="payment-instructions" class="text-center" rows="4" placeholder="Instructions pour les enseignants (RIB, etc.)"></textarea>
                     </div>
-                    <button id="save-instructions-btn" class="btn btn-primary">Enregistrer Instructions</button>
+                    <button id="save-instructions-btn" class="btn btn-primary w-auto mx-auto d-block px-8 mt-2">Enregistrer Instructions</button>
                 </div>
             </section>
 
@@ -92,7 +92,7 @@
         <!-- Section Users -->
         <div id="tab-users" class="section-tab hidden">
             <section>
-                <h2>Gestion des Utilisateurs</h2>
+                <h2 class="text-center">Gestion des Utilisateurs</h2>
                 <div class="table-container">
                     <table>
                         <thead>
@@ -305,7 +305,7 @@
     </script>
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.2</span>
+        <span class="version">v{{version}}</span>
     </footer>
 </body>
 

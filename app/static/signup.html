@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Inscription Enseignant - Afeedny</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v={{version}}">
 </head>
 
 <body>
@@ -18,24 +18,24 @@
 
         <section class="card">
             <form id="signup-form">
-                <div class="form-group">
-                    <label for="name">Nom Complet</label>
-                    <input type="text" id="name" required placeholder="Ex: Prof. Mohamed">
+                <div class="form-group mb-6">
+                    <label for="name" class="text-center w-full">Nom Complet</label>
+                    <input type="text" id="name" class="text-center" required placeholder="Ex: Prof. Mohamed">
                 </div>
-                <div class="form-group">
-                    <label for="email">Email professionnel</label>
-                    <input type="email" id="email" required placeholder="votre@email.com">
+                <div class="form-group mb-6">
+                    <label for="email" class="text-center w-full">Email professionnel</label>
+                    <input type="email" id="email" class="text-center" required placeholder="votre@email.com">
                 </div>
-                <div class="form-group">
-                    <label for="password">Mot de passe</label>
-                    <input type="password" id="password" required minlength="6">
+                <div class="form-group mb-6">
+                    <label for="password" class="text-center w-full">Mot de passe</label>
+                    <input type="password" id="password" class="text-center" required minlength="6">
                 </div>
-                <div class="form-group">
-                    <label for="invitation_code">Code d'invitation</label>
-                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin" class="text-uppercase">
-                    <p class="mt-1 text-muted text-xs">Un code d'invitation est nécessaire pour l'inscription.</p>
+                <div class="form-group mb-8">
+                    <label for="invitation_code" class="text-center w-full">Code d'invitation</label>
+                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin" class="text-uppercase text-center">
+                    <p class="mt-2 text-muted text-xs text-center">Un code d'invitation est nécessaire pour l'inscription.</p>
                 </div>
-                <button type="submit" class="btn btn-primary w-full h-44 mt-2" id="signup-btn">Créer mon compte</button>
+                <button type="submit" class="btn btn-primary w-auto mx-auto d-block px-12 h-48 mt-2" id="signup-btn">Créer mon compte</button>
             </form>
             <div class="text-center mt-6 text-sm text-muted">
                 Déjà un compte ? <a href="/login" class="btn-link">Se connecter</a>
@@ -45,7 +45,7 @@
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.2</span>
+        <span class="version">v{{version}}</span>
     </footer>
 
     <script>

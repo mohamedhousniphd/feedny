@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Acheter des Crédits - Afeedny</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v={{version}}">
 </head>
 
 <body>
@@ -15,25 +15,25 @@
             <h1>Recharger mes crédits</h1>
         </header>
 
-        <section class="card">
-            <h2>Instructions de Paiement</h2>
-            <div id="instructions-container" class="card bg-muted p-4 mt-2 text-sm">
+        <section class="card text-center">
+            <h2 class="text-center">Instructions de Paiement</h2>
+            <div id="instructions-container" class="card bg-muted p-4 mt-2 text-sm text-center">
                 <p id="payment-text">Chargement des instructions...</p>
             </div>
 
             <div class="upload-section mt-8">
-                <h3>Envoyer une preuve de paiement</h3>
+                <h3 class="text-center">Envoyer une preuve de paiement</h3>
                 <form id="upload-form" class="mt-4">
-                    <div class="form-group">
-                        <label for="receipt-file">Reçu / Capture d'écran</label>
-                        <input type="file" id="receipt-file" accept="image/*,.pdf" required>
+                    <div class="form-group mb-6">
+                        <label for="receipt-file" class="text-center w-full">Reçu / Capture d'écran</label>
+                        <input type="file" id="receipt-file" class="text-center" accept="image/*,.pdf" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-full h-44">Envoyer la preuve</button>
+                    <button type="submit" class="btn btn-primary w-auto mx-auto d-block px-12 h-48">Envoyer la preuve</button>
                 </form>
             </div>
 
             <div class="mt-8 pt-6 border-top text-center">
-                <a href="/teacher/dashboard" class="btn btn-secondary w-full">Retour au Dashboard</a>
+                <a href="/teacher/dashboard" class="btn btn-secondary w-auto mx-auto d-block px-12">Retour au Dashboard</a>
             </div>
         </section>
     </div>
@@ -90,7 +90,7 @@
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.2</span>
+        <span class="version">v{{version}}</span>
     </footer>
 </body>
 

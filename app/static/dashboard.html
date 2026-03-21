@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Dashboard - Afeedny</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v={{version}}">
 </head>
 
 <body>
@@ -41,7 +41,7 @@
         </div>
 
         <!-- Quick Actions -->
-        <section class="actions text-center border-top pt-6">
+        <section class="actions d-flex justify-center gap-2 flex-wrap border-top pt-6">
             <button id="refresh-btn" class="btn btn-secondary">🔄 Rafraîchir</button>
             <button id="export-csv-btn" class="btn btn-secondary">📥 Exporter CSV</button>
             <button id="export-json-btn" class="btn btn-secondary">💾 Exporter JSON</button>
@@ -52,12 +52,12 @@
 
         <!-- Teacher Question -->
         <section>
-            <h2>Question Actuelle</h2>
-            <div class="card">
+            <h2 class="text-center">Question Actuelle</h2>
+            <div class="card text-center">
                 <div class="form-group">
-                    <input type="text" id="teacher-question-input" placeholder="Ex: Comment s'est passé votre cours ?" maxlength="200">
+                    <input type="text" id="teacher-question-input" class="text-center" placeholder="Ex: Comment s'est passé votre cours ?" maxlength="200">
                 </div>
-                <button id="save-question-btn" class="btn btn-primary">Enregistrer la Question</button>
+                <button id="save-question-btn" class="btn btn-primary w-auto mx-auto d-block px-8 mt-2">Enregistrer la Question</button>
             </div>
         </section>
 
@@ -87,13 +87,13 @@
 
         <!-- Analyze Call to Action -->
         <section>
-            <h2>Analyse Contextuelle</h2>
-            <div class="card">
+            <h2 class="text-center">Analyse Contextuelle</h2>
+            <div class="card text-center">
                 <div class="form-group">
-                    <label for="context">Contexte du cours</label>
-                    <textarea id="context" rows="3" placeholder="Ex: Cours de mathématiques sur les équations différentielles..." maxlength="1000"></textarea>
+                    <label for="context" class="text-center w-full">Contexte du cours</label>
+                    <textarea id="context" rows="3" class="text-center" placeholder="Ex: Cours de mathématiques sur les équations différentielles..." maxlength="1000"></textarea>
                 </div>
-                <button id="analyze-btn" class="btn btn-primary">Générer l'analyse IA</button>
+                <button id="analyze-btn" class="btn btn-primary w-auto mx-auto d-block px-8 mt-2">Générer l'analyse IA</button>
             </div>
         </section>
 
@@ -729,7 +729,7 @@
         }
     </script>    <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.2</span>
+        <span class="version">v{{version}}</span>
     </footer>
 </body>
 </html>

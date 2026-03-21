@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <title>Afeedny - Partagez votre feedback</title>
-    <link rel="stylesheet" href="/static/css/styles.css?v=1.2.2">
+    <link rel="stylesheet" href="/static/css/styles.css?v={{version}}">
 </head>
 
 <body>
@@ -53,7 +53,7 @@
                     <input type="hidden" id="selected-emotion" value="">
                 </div>
 
-                <button id="submit-btn" class="btn btn-primary w-full h-48 text-sm">Envoyer mon feedback</button>
+                <button id="submit-btn" class="btn btn-primary w-auto mx-auto d-block h-48 px-8 text-sm">Envoyer mon feedback</button>
             </div>
         </section>
 
@@ -74,7 +74,7 @@
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.2</span>
+        <span class="version">v{{version}}</span>
     </footer>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

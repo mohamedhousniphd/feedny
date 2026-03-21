@@ -480,6 +480,8 @@ footer.footer .version {
 .text-sm { font-size: 0.875rem !important; }
 .text-xs { font-size: 0.75rem !important; }
 .text-uppercase { text-transform: uppercase !important; }
+.mx-auto { margin-left: auto !important; margin-right: auto !important; }
+.w-auto { width: auto !important; }
 .w-full { width: 100% !important; }
 .h-44 { height: 44px !important; }
 .h-48 { height: 48px !important; }
@@ -509,8 +511,12 @@ footer.footer .version {
 .border-top { border-top: 1px solid var(--color-border) !important; }
 
 .d-flex { display: flex !important; }
-.gap-2 { gap: 12px !important; }
+.flex-column { flex-direction: column !important; }
+.justify-center { justify-content: center !important; }
+.ai-center { align-items: center !important; }
 .ai-end { align-items: flex-end !important; }
+.gap-1 { gap: 8px !important; }
+.gap-2 { gap: 12px !important; }
 
 .btn-link {
     color: var(--color-primary);

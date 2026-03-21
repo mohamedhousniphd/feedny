@@ -10,31 +10,30 @@
 </head>
 
 <body>
-    <div class="container" style="max-width: 600px; margin: 0 auto;">
+    <div class="container container-md">
         <header class="header">
             <h1>Recharger mes crédits</h1>
         </header>
 
         <section class="card">
             <h2>Instructions de Paiement</h2>
-            <div id="instructions-container" class="badge" style="display: block; padding: 16px; margin: 16px 0; line-height: 1.6; text-align: left; background-color: var(--color-background);">
+            <div id="instructions-container" class="card bg-muted p-4 mt-2 text-sm">
                 <p id="payment-text">Chargement des instructions...</p>
             </div>
 
-            <div class="upload-section" style="margin-top: 30px; text-align: left;">
+            <div class="upload-section mt-8">
                 <h3>Envoyer une preuve de paiement</h3>
-                <form id="upload-form">
+                <form id="upload-form" class="mt-4">
                     <div class="form-group">
                         <label for="receipt-file">Reçu / Capture d'écran</label>
-                        <input type="file" id="receipt-file" accept="image/*,.pdf" required
-                            style="display: block; width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                        <input type="file" id="receipt-file" accept="image/*,.pdf" required>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Envoyer la preuve</button>
+                    <button type="submit" class="btn btn-primary w-full h-44">Envoyer la preuve</button>
                 </form>
             </div>
 
-            <div style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 24px; text-align: center;">
-                <a href="/teacher/dashboard" class="btn btn-secondary" style="width: 100%;">Retour au Dashboard</a>
+            <div class="mt-8 pt-6 border-top text-center">
+                <a href="/teacher/dashboard" class="btn btn-secondary w-full">Retour au Dashboard</a>
             </div>
         </section>
     </div>
@@ -91,7 +90,7 @@
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 </body>
 

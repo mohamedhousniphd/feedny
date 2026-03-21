@@ -101,8 +101,11 @@
         <section id="results-section" class="hidden">
             <h2>Résultats de l'analyse</h2>
             <div class="card">
-                <div id="wordcloud-container" style="text-align: center; margin-bottom: 24px;">
-                    <img id="wordcloud-image" src="" alt="Nuage de mots" style="max-width: 100%; border-radius: var(--radius-md);">
+        <section id="results-section" class="hidden">
+            <h2>Résultats de l'analyse</h2>
+            <div class="card">
+                <div id="wordcloud-container" class="wordcloud-container">
+                    <img id="wordcloud-image" src="" alt="Nuage de mots" class="wordcloud-img">
                 </div>
                 <div class="summary-container">
                     <h3>Résumé de l'IA</h3>
@@ -118,8 +121,8 @@
         <!-- History -->
         <section>
             <h2>Historique des Analyses</h2>
-            <div id="history-container" class="card" style="padding: 0;">
-                <p id="no-history" style="padding: 24px; color: var(--color-text-muted);">Aucune analyse précédente</p>
+            <div id="history-container" class="card history-container">
+                <p id="no-history" class="history-empty">Aucune analyse précédente</p>
             </div>
         </section>
     </div>
@@ -161,7 +164,6 @@
                 document.getElementById('import-file-input').click();
             });
             document.getElementById('import-file-input').addEventListener('change', importJSON);
-            document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('reset-btn').addEventListener('click', resetDatabase);
             document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
             document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
@@ -611,9 +613,9 @@
                             </td>
                         </tr>
                         <tr id="history-detail-${a.id}" class="hidden">
-                            <td colspan="4" style="padding: 24px; background-color: var(--color-background);">
-                                ${a.wordcloud_image ? `<img src="data:image/png;base64,${a.wordcloud_image}" style="max-width: 100%; border-radius: var(--radius-md); margin-bottom: 24px;" alt="Wordcloud">` : ''}
-                                <div class="summary-container" style="border: none; padding: 0;">
+                            <td colspan="4" class="history-detail-content">
+                                ${a.wordcloud_image ? `<img src="data:image/png;base64,${a.wordcloud_image}" class="wordcloud-img mb-6" alt="Wordcloud">` : ''}
+                                <div class="summary-container p-0" style="border: none;">
                                     <div style="white-space: pre-wrap;">${formatMarkdown(a.summary)}</div>
                                 </div>
                             </td>
@@ -730,7 +732,7 @@
         }
     </script>    <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 </body>
 </html>

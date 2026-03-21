@@ -10,10 +10,10 @@
 </head>
 
 <body>
-    <div class="container" style="max-width: 480px; margin: 0 auto;">
-        <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
+    <div class="container container-tight">
+        <header class="header header-centered">
             <h1>Afeedny</h1>
-            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Créer un compte enseignant</p>
+            <p class="text-sm text-muted">Créer un compte enseignant</p>
         </header>
 
         <section class="card">
@@ -32,20 +32,20 @@
                 </div>
                 <div class="form-group">
                     <label for="invitation_code">Code d'invitation</label>
-                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin" style="text-transform: uppercase;">
-                    <p style="margin-top: 6px; color: var(--color-text-muted); font-size: 0.75rem;">Un code d'invitation est nécessaire pour l'inscription.</p>
+                    <input type="text" id="invitation_code" required placeholder="Code enseignant ou admin" class="text-uppercase">
+                    <p class="mt-1 text-muted text-xs">Un code d'invitation est nécessaire pour l'inscription.</p>
                 </div>
-                <button type="submit" class="btn btn-primary" id="signup-btn" style="width: 100%; height: 44px; margin-top: 8px;">Créer mon compte</button>
+                <button type="submit" class="btn btn-primary w-full h-44 mt-2" id="signup-btn">Créer mon compte</button>
             </form>
-            <div style="margin-top: 24px; text-align: center; font-size: 0.875rem; color: var(--color-text-muted);">
-                Déjà un compte ? <a href="/login" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">Se connecter</a>
+            <div class="text-center mt-6 text-sm text-muted">
+                Déjà un compte ? <a href="/login" class="btn-link">Se connecter</a>
             </div>
         </section>
     </div>
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 
     <script>

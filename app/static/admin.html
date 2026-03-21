@@ -18,7 +18,7 @@
             </div>
         </header>
 
-        <section class="actions" style="margin-bottom: 32px;">
+        <section class="actions mb-8">
             <button class="btn btn-primary" onclick="showTab('credits')">Gestion Crédits</button>
             <button class="btn btn-secondary" onclick="showTab('receipts')">Validation Paiements</button>
             <button class="btn btn-secondary" onclick="showTab('users')">Utilisateurs</button>
@@ -29,8 +29,8 @@
             <section>
                 <h2>Gestion des Crédits</h2>
                 <div class="card">
-                    <div class="form-group" style="display: flex; gap: 12px; align-items: flex-end;">
-                        <input type="text" id="search-email" placeholder="Rechercher par email..." style="max-width: 400px;">
+                    <div class="form-group d-flex gap-2 ai-end">
+                        <input type="text" id="search-email" placeholder="Rechercher par email..." class="max-w-md">
                         <button id="search-btn" class="btn btn-secondary">Rechercher</button>
                     </div>
                 </div>
@@ -136,7 +136,7 @@
                         <td>${t.is_admin ? '∞' : t.credits}</td>
                         <td>
                             <button class="btn btn-sm btn-success" onclick="addCredits('${t.email}', 5)">+5 Crédits</button>
-                            <button class="btn btn-sm btn-danger" style="background-color: #fca5a5;" onclick="addCredits('${t.email}', -1)">-1</button>
+                            <button class="btn btn-sm btn-danger btn-light-red" onclick="addCredits('${t.email}', -1)">-1</button>
                         </td>
                     </tr>
                 `).join('');
@@ -305,7 +305,7 @@
     </script>
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 </body>
 

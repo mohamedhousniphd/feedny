@@ -18,17 +18,17 @@
             </div>
         </header>
 
-        <section id="feedback-form" style="max-width: 600px; margin: 0 auto;">
-            <div class="card" style="text-align: center; margin-bottom: 24px; background-color: var(--color-background);">
-                <h2 id="teacher-question" style="margin-bottom: 0;">{{question}}</h2>
+        <section id="feedback-form" class="container-md">
+            <div class="card text-center mb-6" style="background-color: var(--color-background);">
+                <h2 id="teacher-question" class="m-0">{{question}}</h2>
             </div>
 
             <div class="card">
                 <div class="form-group">
                     <label for="feedback-content">Votre feedback</label>
                     <textarea id="feedback-content" maxlength="240" placeholder="Partagez vos pensées... (max 240 caractères)" rows="5"></textarea>
-                    <div style="text-align: right; margin-top: 8px;">
-                        <span id="current-chars" style="font-size: 0.75rem; color: var(--color-text-muted);">0</span><span style="font-size: 0.75rem; color: var(--color-text-muted);">/240</span>
+                    <div class="text-center mt-2">
+                        <span id="current-chars" class="text-xs text-muted">0</span><span class="text-xs text-muted">/240</span>
                     </div>
                 </div>
 
@@ -53,28 +53,28 @@
                     <input type="hidden" id="selected-emotion" value="">
                 </div>
 
-                <button id="submit-btn" class="btn btn-primary" style="width: 100%; height: 48px; font-size: 1rem;">Envoyer mon feedback</button>
+                <button id="submit-btn" class="btn btn-primary w-full h-48 text-sm">Envoyer mon feedback</button>
             </div>
         </section>
 
-        <div id="success-message" class="hidden" style="text-align: center; padding: 48px 16px;">
+        <div id="success-message" class="hidden text-center p-6">
             <div style="font-size: 4rem; margin-bottom: 24px; color: var(--color-success);">✓</div>
             <h2 style="font-size: 2rem;">Merci !</h2>
-            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Votre feedback a été enregistré avec succès.</p>
-            <p style="font-size: 0.875rem; color: var(--color-text-muted);">L'enseignant pourra analyser votre réponse sous peu.</p>
+            <p class="text-muted mb-6">Votre feedback a été enregistré avec succès.</p>
+            <p class="text-sm text-muted">L'enseignant pourra analyser votre réponse sous peu.</p>
         </div>
 
-        <div id="already-submitted" class="hidden" style="text-align: center; padding: 48px 16px;">
+        <div id="already-submitted" class="hidden text-center p-6">
             <div style="font-size: 4rem; margin-bottom: 24px; color: var(--color-primary);">ℹ</div>
             <h2 style="font-size: 2rem;">Déjà envoyé</h2>
-            <p style="color: var(--color-text-muted); margin-bottom: 24px;">Vous avez déjà soumis un feedback pour cette session.</p>
-            <p style="font-size: 0.875rem; color: var(--color-text-muted);">Veuillez attendre que l'enseignant ouvre une nouvelle collecte.</p>
+            <p class="text-muted mb-6">Vous avez déjà soumis un feedback pour cette session.</p>
+            <p class="text-sm text-muted">Veuillez attendre que l'enseignant ouvre une nouvelle collecte.</p>
         </div>
     </div>
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 </body>
 

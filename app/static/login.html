@@ -10,10 +10,10 @@
 </head>
 
 <body>
-    <div class="container" style="max-width: 480px; margin: 0 auto;">
-        <header class="header" style="justify-content: center; text-align: center; flex-direction: column;">
+    <div class="container container-tight">
+        <header class="header header-centered">
             <h1>Afeedny</h1>
-            <p style="color: var(--color-text-muted); font-size: 0.875rem;">Accès Enseignant</p>
+            <p class="text-sm text-muted">Accès Enseignant</p>
         </header>
 
         <section class="card">
@@ -26,17 +26,17 @@
                     <label for="password">Mot de passe</label>
                     <input type="password" id="password" required>
                 </div>
-                <button type="submit" class="btn btn-primary" id="login-btn" style="width: 100%; height: 44px; margin-top: 8px;">Se connecter</button>
+                <button type="submit" class="btn btn-primary w-full h-44 mt-2" id="login-btn">Se connecter</button>
             </form>
-            <div style="margin-top: 24px; text-align: center; font-size: 0.875rem; color: var(--color-text-muted);">
-                Pas encore de compte ? <a href="/signup" style="color: var(--color-primary); text-decoration: none; font-weight: 500;">Créer un compte</a>
+            <div class="text-center mt-6 text-sm text-muted">
+                Pas encore de compte ? <a href="/signup" class="btn-link">Créer un compte</a>
             </div>
         </section>
     </div>
 
     <footer class="footer">
         <p>Développé et maintenu par <a href="https://mohamedhousni.com/" target="_blank">Mohamed HOUSNI Ph.D.</a></p>
-        <span class="version">v1.2.0</span>
+        <span class="version">v1.2.2</span>
     </footer>
 
     <script>

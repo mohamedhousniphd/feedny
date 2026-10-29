@@ -37,6 +37,37 @@ def process_arabic_word(word: str) -> str:
     return word
 
 
+# Extra French fillers/contractions that the standard lists miss.
+EXTRA_FR_STOPWORDS = set(
+    """je tu il elle on nous vous ils elles me te se moi toi lui eux
+    mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs
+    ce cet cette ces cela ceci celui celle ceux
+    y en deja déjà encore aussi comme beaucoup peu trop bien mal faut
+    suis es est sommes etes êtes sont ai as a avons avez ont
+    veux veut voulons voulez veulent voudrais voudrait
+    aimerais aimerait aime aimes aimons aimez aiment
+    sais sait savons savez savent peux peut pouvons pouvez peuvent
+    dois doit devons devez doivent fais fait faisons faites font
+    dire dis dit parle parlent penser pense pensez trouve trouves
+    etre être meme même tres très quand alors donc ainsi souvent toujours jamais
+    ici la là ou où car puis ensuite enfin surtout vraiment peut-etre
+    aujourd hui nimporte n'importe""".split()
+)
+
+# Very short tokens worth keeping (AI acronyms)
+SHORT_WORDS_TO_KEEP = {"ia", "ai", "ml", "llm", "rag", "api", "nlp", "gpt", "ocr"}
+
+# Elided pronouns/articles: j', d', l', qu', n', s', c', m', t', jusqu', lorsqu'…
+CONTRACTION_PATTERN = re.compile(
+    r"\b(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu|quoiqu)'", re.IGNORECASE
+)
+
+
+def normalize_french_contractions(text: str) -> str:
+    """Drop elided prefixes so that "j'utilise" is analysed as "utilise"."""
+    return CONTRACTION_PATTERN.sub(" ", text)
+
+
 def get_multilingual_stopwords() -> set[str]:
     """Get combined stopwords for French, English, and Arabic."""
     combined_stopwords = set()
@@ -69,6 +100,9 @@ def get_multilingual_stopwords() -> set[str]:
             'very', 'more', 'most', 'some', 'any', 'no', 'not', 'only', 'just'
         ])
     
+    # Add extra French fillers
+    combined_stopwords.update(EXTRA_FR_STOPWORDS)
+
     # Add Arabic stopwords
     try:
         combined_stopwords.update(stopwords('ar'))
@@ -150,6 +184,7 @@ def create_wordcloud(
     try:
         # Get multi-language stopwords
         stopwords_set = get_multilingual_stopwords()
+        text = normalize_french_contractions(text)
 
         # Construct regex dynamically to safely extract words
         arabic_range = f"{chr(0x0600)}-{chr(0x06FF)}{chr(0x0750)}-{chr(0x077F)}{chr(0x08A0)}-{chr(0x08FF)}"
@@ -168,6 +203,13 @@ def create_wordcloud(
         # and translates raw Arabic chars into presentation forms supported by the font.
         reshaped_frequencies = {}
         for word, freq in base_frequencies.items():
+            lowered = word.lower()
+            if lowered in stopwords_set:
+                continue
+            if len(lowered) <= 2 and lowered not in SHORT_WORDS_TO_KEEP:
+                continue
+            if "'" in lowered and lowered not in SHORT_WORDS_TO_KEEP:
+                continue
             reshaped_word = process_arabic_word(word)
             reshaped_frequencies[reshaped_word] = freq
 
@@ -192,7 +234,6 @@ def create_wordcloud(
         fig, ax = plt.subplots(figsize=(10, 5), dpi=100)
         ax.imshow(wordcloud, interpolation='bilinear')
         ax.axis('off')
-        ax.set_title('Nuage de mots', fontsize=14, pad=20, color='black')
 
         # Save to buffer
         buffer = io.BytesIO()

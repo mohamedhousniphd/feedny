@@ -1,5 +1,7 @@
 import os
 import io
+import re
+import html
 import base64
 from datetime import datetime
 from typing import Optional
@@ -85,6 +87,40 @@ def process_multilingual_text(text: str) -> str:
     return '\n'.join(processed_lines)
 
 # --- PDF Generation ---
+
+# Emoji / pictograms are missing from the bundled font: strip them (no tofu boxes)
+_EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F000-\U0001FAFF"
+    "\U00002600-\U000027BF"
+    "\U0001F1E6-\U0001F1FF"
+    "\uFE0F\u200D\u20E3"
+    "]",
+    flags=re.UNICODE,
+)
+
+
+def clean_markdown(text: str) -> str:
+    """Strip emoji/markdown markers and convert **bold** to ReportLab <b>."""
+    text = _EMOJI_PATTERN.sub("", text)
+    text = text.replace("\u2022", "-").replace("\u2013", "-")
+    text = html.escape(text, quote=False)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = text.replace("**", "").replace("*", "")
+    text = re.sub(r"^#{1,6}\s*", "", text)
+    return text.strip()
+
+
+def is_section_heading(text: str) -> bool:
+    """Detect analysis section titles ("1. Résumé général", "Points positifs"…)."""
+    lowered = text.lower()
+    if re.match(r"^\d+[.)]\s", text):
+        return True
+    return any(
+        keyword in lowered
+        for keyword in ("résumé", "points positifs", "points à améliorer", "recommandations")
+    )
+
 
 def create_analysis_pdf(
     wordcloud_image_base64: str,
@@ -221,7 +257,7 @@ def create_analysis_pdf(
             print(f"Error processing wordcloud image: {e}")
 
     # Add Wordcloud section
-    story.append(Paragraph("☁️ Nuage de Mots", section_heading))
+    story.append(Paragraph("Nuage de mots", section_heading))
     if wordcloud_img:
         story.append(wordcloud_img)
     else:
@@ -230,20 +266,19 @@ def create_analysis_pdf(
     story.append(Spacer(1, 20))
     
     # Analysis Section
-    story.append(Paragraph(process_multilingual_text("📊 Analyse IA"), section_heading))
+    story.append(Paragraph("Analyse IA", section_heading))
     
     # Format analysis text - split by sections
-    for line in analysis_text.split('\n'):
-        line = line.strip()
+    for raw_line in analysis_text.split('\n'):
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        line = clean_markdown(raw_line)
         if not line:
             continue
-        # Check if it's a heading
-        if any(line.startswith(f"{i}.") for i in range(1, 10)) or \
-           any(keyword in line.lower() for keyword in ['résumé', 'points positifs', 'points à améliorer', 'recommandations']):
+        if is_section_heading(raw_line):
             story.append(Paragraph(process_multilingual_text(line), section_heading))
         else:
-            # Clean up markdown formatting
-            line = line.replace('**', '').replace('*', '')
             story.append(Paragraph(process_multilingual_text(line), analysis_style))
 
     

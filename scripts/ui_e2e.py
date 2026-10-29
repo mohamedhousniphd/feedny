@@ -62,9 +62,19 @@ def main() -> int:
             has_touch=True,
         )
         page = student.new_page()
-        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
+        def _console(msg):
+            if msg.type == "error" and "cloudflareinsights.com" not in msg.text:
+                console_errors.append(msg.text)
+
+        page.on("console", _console)
         page.on("pageerror", lambda exc: console_errors.append(str(exc)))
-        page.on("requestfailed", lambda req: failed_requests.append(f"{req.method} {req.url}"))
+        def _failed(req):
+            # Ignore third-party analytics blocked by local DNS/adblock
+            if "cloudflareinsights.com" in req.url:
+                return
+            failed_requests.append(f"{req.method} {req.url}")
+
+        page.on("requestfailed", _failed)
 
         # 1. Landing
         page.goto(base + "/", wait_until="networkidle")

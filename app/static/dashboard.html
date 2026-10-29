@@ -695,14 +695,12 @@
                 if (!response.ok) return;
                 const data = await response.json();
                 const container = document.getElementById('history-container');
-                const noHistory = document.getElementById('no-history');
+                if (!container) return;
 
                 if (!data.analyses || data.analyses.length === 0) {
-                    noHistory.style.display = 'block';
-                    container.querySelector('table')?.remove();
+                    container.innerHTML = '<p id="no-history" class="history-empty">Aucune analyse précédente</p>';
                     return;
                 }
-                noHistory.style.display = 'none';
 
                 let html = `<div class="table-container"><table>
                     <thead>

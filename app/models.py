@@ -6,6 +6,19 @@ from typing import Optional, Literal
 class FeedbackRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=240)
     emotion: Optional[int] = Field(None, ge=1, le=10, description="Emotional state from 1 (sad) to 10 (very happy)")
+    # Anonymous technical context sent by the browser (device, network…)
+    client_info: Optional[dict] = None
+    fill_seconds: Optional[float] = Field(None, ge=0, le=86400)
+
+
+class ClientInfoRequest(BaseModel):
+    """Anonymous technical context posted when a student joins a session."""
+    client_info: Optional[dict] = None
+    fill_seconds: Optional[float] = Field(None, ge=0, le=86400)
+
+
+class ClientInfoResponse(BaseModel):
+    status: str = "ok"
 
 
 class FeedbackResponse(BaseModel):

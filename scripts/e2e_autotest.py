@@ -127,12 +127,46 @@ def main() -> int:
     check("Code de session = " + args.code, admin.get("unique_code") == args.code, str(admin.get("unique_code")))
     check("Compte admin (is_admin)", bool(admin.get("is_admin")))
 
+    # 4b. Contexte technique anonyme (page d'ouverture de session)
+    html_form = client.get(f"/?code={args.code}").text
+    check("Formulaire étudiant pointe sur /api/feedback", 'fetch(\'/api/feedback\'' in html_form)
+    device_ctx = {
+        "userAgent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36",
+        "platform": "Linux armv8l",
+        "language": "fr-MA",
+        "timezone": "Africa/Casablanca",
+        "screen": [1080, 2400],
+        "viewport": [412, 915],
+        "connectionType": "3g",
+        "downlink": 1.5,
+        "rtt": 300,
+        "saveData": False,
+        "touch": True,
+        "memory": 4,
+        "cores": 8,
+        "firstInputSeconds": 4.2,
+        "typingSeconds": 38.0,
+        "totalSeconds": 47.5,
+        "keystrokes": 142,
+        "backspaces": 11,
+        "pasted": False,
+        "pasteChars": 0,
+        "idleSeconds": 9.3,
+    }
+    r = client.post("/api/client-info", json={"client_info": device_ctx})
+    check("POST /api/client-info (join)", r.status_code == 200, r.text[:60])
+
     # 5. Feedbacks étudiants (un device par feedback)
     created_ids: list[int] = []
     demo = (DEMO_FEEDBACKS * ((args.count // len(DEMO_FEEDBACKS)) + 1))[: args.count]
     for content, emotion in demo:
         client.cookies.set("device_id", str(uuid.uuid4()))
-        r = client.post("/api/feedback", json={"content": content, "emotion": emotion})
+        r = client.post("/api/feedback", json={
+            "content": content,
+            "emotion": emotion,
+            "client_info": device_ctx,
+            "fill_seconds": 42.0,
+        })
         if r.status_code in (200, 201):
             created_ids.append(r.json().get("id"))
         else:
@@ -166,6 +200,8 @@ def main() -> int:
     check("POST /api/analyze", r.status_code == 200, f"{r.status_code} en {elapsed:.1f}s")
     check("Résumé IA généré (non vide)", len(summary) > 120, f"{len(summary)} car.")
     check("Résumé IA non dégradé", "pas disponible actuellement" not in summary.lower())
+    technical = analysis.get("technical") or {}
+    check("Contexte technique renvoyé par l'analyse", bool(technical.get("lines")), f"{len(technical.get('lines') or [])} ligne(s)")
     check("Nuage de mots (base64 PNG)", wordcloud_b64.startswith("data:image/png;base64,") or wordcloud_b64.startswith("iVBOR"), f"{len(wordcloud_b64)} car.")
 
     if wordcloud_b64:
@@ -190,12 +226,26 @@ def main() -> int:
     if wordcloud_b64 and summary:
         r = client.post(
             "/api/export/pdf",
-            json={"wordcloud_image": wordcloud_b64, "analysis_text": summary, "context": "Formation à l'IA"},
+            json={
+                "wordcloud_image": wordcloud_b64,
+                "analysis_text": summary,
+                "context": "Formation à l'IA",
+                "technical": technical,
+            },
         )
         pdf_ok = r.status_code == 200 and r.content[:5] == b"%PDF-"
         if pdf_ok:
             (outdir / f"rapport-{stamp}.pdf").write_bytes(r.content)
         check("POST /api/export/pdf (rapport)", pdf_ok, f"{len(r.content)} octets, {r.status_code}")
+
+    # 10b. Insights techniques
+    r = client.get("/api/insights/technical")
+    insights = (r.json() or {}).get("insights", {}) if r.status_code == 200 else {}
+    check(
+        "GET /api/insights/technical",
+        r.status_code == 200 and insights.get("submits", 0) >= len(created_ids),
+        f"joins={insights.get('joins')} submits={insights.get('submits')} conv={insights.get('conversion_rate')}%",
+    )
 
     # 11. Historique des analyses
     r = client.get("/api/analyses")

@@ -6,7 +6,8 @@ from app.services.deepseek import analyze_feedbacks
 
 async def process_feedback_analysis(
     feedbacks: List[Dict[str, Any]],
-    context: Optional[str] = None
+    context: Optional[str] = None,
+    technical_lines: Optional[List[str]] = None
 ) -> Tuple[str, str]:
     """
     Core feedback analysis and processing logic.
@@ -39,7 +40,8 @@ async def process_feedback_analysis(
             summary = await analyze_feedbacks(
                 feedbacks=feedback_contents,
                 context=context or "",
-                emotions=feedback_emotions
+                emotions=feedback_emotions,
+                technical_lines=technical_lines
             )
             if summary:
                 return summary

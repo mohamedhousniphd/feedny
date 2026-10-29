@@ -1,4 +1,5 @@
 import html
+import json
 import os
 import sys
 import uuid
@@ -49,6 +50,8 @@ from app.database import (
     list_db_backups,
     maybe_backup_daily,
     get_feedback_stats,
+    get_technical_insights,
+    save_client_event,
     import_feedbacks,
     get_setting,
     set_setting,
@@ -65,6 +68,8 @@ from app.database import (
 )
 from app.models import (
     FeedbackRequest,
+    ClientInfoRequest,
+    ClientInfoResponse,
     FeedbackResponse,
     FeedbackListResponse,
     TeacherLoginRequest,
@@ -77,9 +82,14 @@ from app.models import (
     ReceiptApprovalRequest
 )
 from app.services.analysis import process_feedback_analysis
+from app.services.client_info import (
+    collect_client_context,
+    request_country,
+    summarize_technical,
+)
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.8"
+APP_VERSION = "1.2.9"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -415,6 +425,19 @@ async def submit_feedback(
     feedback_id = insert_feedback(request.content, device_id, request.emotion, teacher['id'])
     increment_device_feedback(device_id)
 
+    # Anonymous technical context (device, browser, network, typing timings)
+    try:
+        context = collect_client_context(
+            request.client_info,
+            user_agent=http_request.headers.get("user-agent", ""),
+            country_hint=request_country(http_request),
+            referrer=http_request.headers.get("referer"),
+            fill_seconds=request.fill_seconds,
+        )
+        save_client_event("submit", teacher['id'], device_id, context)
+    except Exception as exc:  # never block a submission for telemetry
+        print(f"Client context skipped: {exc}")
+
     # Get the created feedback
     feedback = get_feedback_by_id(feedback_id)
 
@@ -438,6 +461,48 @@ async def student_logout(response: Response):
     response.headers["Location"] = "/"
     response.delete_cookie("teacher_code")
     return response
+
+
+@app.post("/api/client-info", response_model=ClientInfoResponse)
+async def collect_client_info(
+    request: ClientInfoRequest,
+    http_request: Request,
+):
+    """Record anonymous technical context when a student opens a session."""
+    code = http_request.cookies.get("teacher_code")
+    if not code:
+        return ClientInfoResponse(status="ignored")
+
+    teacher = get_teacher_by_code(code)
+    if not teacher:
+        return ClientInfoResponse(status="ignored")
+
+    try:
+        device_id = get_device_id(http_request)
+        context = collect_client_context(
+            request.client_info,
+            user_agent=http_request.headers.get("user-agent", ""),
+            country_hint=request_country(http_request),
+            referrer=http_request.headers.get("referer"),
+            fill_seconds=request.fill_seconds,
+        )
+        save_client_event("join", teacher['id'], device_id, context)
+    except Exception as exc:  # telemetry must never break the student flow
+        print(f"Join context skipped: {exc}")
+
+    return ClientInfoResponse(status="ok")
+
+
+@app.get("/api/insights/technical")
+async def technical_insights(
+    teacher: dict = Depends(get_current_teacher)
+):
+    """Anonymous technical context: devices, network, timing, participation."""
+    insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
+    return {
+        "insights": insights,
+        "summary": summarize_technical(insights),
+    }
 
 
 @app.get("/api/question")
@@ -551,8 +616,16 @@ async def analyze_feedbacks_endpoint(
             if fb.get('teacher_id') and fb['teacher_id'] != teacher['id']:
                 raise HTTPException(status_code=403, detail="Accès non autorisé à certains feedbacks")
 
+        # Anonymous technical context (device, network, timing) — included in the report
+        insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
+        technical = summarize_technical(insights)
+
         # Process feedback analysis (wordcloud and DeepSeek AI analysis)
-        summary, wordcloud_base64 = await process_feedback_analysis(feedbacks, request_data.context)
+        summary, wordcloud_base64 = await process_feedback_analysis(
+            feedbacks,
+            request_data.context,
+            technical_lines=technical["lines"],
+        )
         
         # Deduct credit if not admin
         if not teacher.get('is_admin'):
@@ -565,14 +638,16 @@ async def analyze_feedbacks_endpoint(
                 summary=summary,
                 wordcloud_image=wordcloud_base64,
                 feedback_count=len(feedbacks),
-                context=request_data.context or ""
+                context=request_data.context or "",
+                technical_context=json.dumps(technical, ensure_ascii=False),
             )
         except Exception as e:
             print(f"Save analysis history error (non-fatal): {e}")
         
         return {
             "summary": summary,
-            "wordcloud_data": {"image": wordcloud_base64}
+            "wordcloud_data": {"image": wordcloud_base64},
+            "technical": technical,
         }
     except HTTPException:
         raise
@@ -1064,16 +1139,23 @@ async def export_pdf(
         wordcloud_image = data.get('wordcloud_image', '')
         analysis_text = data.get('analysis_text', '')
         context = data.get('context', '')
+        technical = data.get('technical') or {}
 
         if not wordcloud_image or not analysis_text:
             raise HTTPException(status_code=400, detail="Données manquantes pour générer le PDF")
+
+        if not technical:
+            # Fall back to the live anonymous metrics if the client did not send them
+            insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
+            technical = summarize_technical(insights)
 
         # Generate PDF (offloaded to threadpool)
         pdf_bytes = await run_in_threadpool(
             create_analysis_pdf,
             wordcloud_image_base64=wordcloud_image,
             analysis_text=analysis_text,
-            context=context
+            context=context,
+            technical=technical,
         )
 
         return Response(

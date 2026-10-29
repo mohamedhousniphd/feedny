@@ -55,6 +55,10 @@
                 </div>
 
                 <button id="submit-btn" class="btn btn-primary w-auto mx-auto d-block h-48 px-8 text-sm">Envoyer mon feedback</button>
+                <p class="text-sm text-muted text-center mt-4">
+                    Des données techniques anonymes (appareil, navigateur, connexion, temps de saisie)
+                    sont enregistrées avec votre feedback pour améliorer la formation. Aucune donnée personnelle.
+                </p>
             </div>
         </section>
 
@@ -78,6 +82,74 @@
         <span class="version">v{{version}}</span>
     </footer>
     <script>
+        // ---------- Anonymous technical context (no permission required) ----------
+        const PAGE_LOADED_AT = performance.now();
+        const telemetry = {
+            firstInputAt: null,
+            lastKeyAt: null,
+            keystrokes: 0,
+            backspaces: 0,
+            pasted: false,
+            pasteChars: 0,
+            maxIdleMs: 0
+        };
+
+        function collectClientInfo() {
+            const nav = navigator || {};
+            const conn = nav.connection || nav.mozConnection || nav.webkitConnection || {};
+            return {
+                userAgent: nav.userAgent || '',
+                platform: nav.platform || '',
+                language: nav.language || '',
+                timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || '',
+                screen: [screen.width, screen.height],
+                viewport: [window.innerWidth, window.innerHeight],
+                deviceType: /iPad|Tablet/i.test(nav.userAgent || '')
+                    ? 'tablet'
+                    : (/Mobi|iPhone|iPod|Android/i.test(nav.userAgent || '') ? 'mobile' : 'desktop'),
+                touch: (nav.maxTouchPoints || 0) > 0,
+                connectionType: conn.effectiveType || '',
+                downlink: typeof conn.downlink === 'number' ? conn.downlink : null,
+                rtt: typeof conn.rtt === 'number' ? conn.rtt : null,
+                saveData: typeof conn.saveData === 'boolean' ? conn.saveData : null,
+                memory: typeof nav.deviceMemory === 'number' ? nav.deviceMemory : null,
+                cores: typeof nav.hardwareConcurrency === 'number' ? nav.hardwareConcurrency : null
+            };
+        }
+
+        function markFirstInput() {
+            if (telemetry.firstInputAt === null) {
+                telemetry.firstInputAt = performance.now();
+            }
+        }
+
+        function timingPayload() {
+            const now = performance.now();
+            const firstAt = telemetry.firstInputAt;
+            return {
+                firstInputSeconds: firstAt === null ? null : +((firstAt - PAGE_LOADED_AT) / 1000).toFixed(1),
+                typingSeconds: firstAt === null ? null : +((now - firstAt) / 1000).toFixed(1),
+                totalSeconds: +((now - PAGE_LOADED_AT) / 1000).toFixed(1),
+                keystrokes: telemetry.keystrokes,
+                backspaces: telemetry.backspaces,
+                pasted: telemetry.pasted,
+                pasteChars: telemetry.pasteChars,
+                idleSeconds: +(telemetry.maxIdleMs / 1000).toFixed(1),
+                fillSeconds: +((now - PAGE_LOADED_AT) / 1000).toFixed(1)
+            };
+        }
+
+        function sendJoinEvent() {
+            try {
+                const payload = Object.assign(collectClientInfo(), timingPayload());
+                fetch('/api/client-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_info: payload })
+                }).catch(() => {});
+            } catch (e) { /* telemetry must never block the form */ }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const textarea = document.getElementById('feedback-content');
             const charCount = document.getElementById('current-chars');
@@ -85,14 +157,38 @@
             const selectedEmotionInput = document.getElementById('selected-emotion');
             const submitBtn = document.getElementById('submit-btn');
 
-            // Character count
+            sendJoinEvent();
+
+            // Character count + typing telemetry
             textarea.addEventListener('input', () => {
                 charCount.textContent = textarea.value.length;
+            });
+
+            textarea.addEventListener('keydown', (event) => {
+                markFirstInput();
+                const now = performance.now();
+                if (telemetry.lastKeyAt !== null) {
+                    telemetry.maxIdleMs = Math.max(telemetry.maxIdleMs, now - telemetry.lastKeyAt);
+                }
+                telemetry.lastKeyAt = now;
+                telemetry.keystrokes += 1;
+                if (event.key === 'Backspace' || event.key === 'Delete') {
+                    telemetry.backspaces += 1;
+                }
+            });
+
+            textarea.addEventListener('paste', (event) => {
+                markFirstInput();
+                telemetry.pasted = true;
+                const text = (event.clipboardData || window.clipboardData);
+                const pastedText = text ? text.getData('text') : '';
+                telemetry.pasteChars += (pastedText || '').length;
             });
 
             // Emoji selection
             emojiButtons.forEach(btn => {
                 btn.addEventListener('click', () => {
+                    markFirstInput();
                     emojiButtons.forEach(b => b.classList.remove('selected'));
                     btn.classList.add('selected');
                     selectedEmotionInput.value = btn.dataset.emotion;
@@ -116,11 +212,19 @@
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Envoi...';
 
+                const timing = timingPayload();
+                const clientInfo = Object.assign(collectClientInfo(), timing);
+
                 try {
-                    const response = await fetch('/api/feedbacks', {
+                    const response = await fetch('/api/feedback', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content, emotion: parseInt(emotion) })
+                        body: JSON.stringify({
+                            content,
+                            emotion: parseInt(emotion),
+                            client_info: clientInfo,
+                            fill_seconds: timing.fillSeconds
+                        })
                     });
 
                     if (response.ok) {
@@ -128,11 +232,11 @@
                         document.getElementById('success-message').classList.remove('hidden');
                     } else {
                         const data = await response.json();
-                        if (response.status === 400 && data.detail === "Feedback already submitted for this session") {
-                             document.getElementById('feedback-form').classList.add('hidden');
-                             document.getElementById('already-submitted').classList.remove('hidden');
+                        if (response.status === 403 || (response.status === 400 && (data.detail || '').includes('déjà'))) {
+                            document.getElementById('feedback-form').classList.add('hidden');
+                            document.getElementById('already-submitted').classList.remove('hidden');
                         } else {
-                            alert(data.detail || 'Erreur lors de l\'envois');
+                            alert(data.detail || 'Erreur lors de l\'envoi');
                             submitBtn.disabled = false;
                             submitBtn.textContent = 'Envoyer mon feedback';
                         }

@@ -123,6 +123,44 @@
             </div>
         </section>
 
+
+        <!-- Anonymous technical context -->
+        <section>
+            <h2>Contexte technique (anonyme)</h2>
+            <div class="card">
+                <p class="text-sm text-muted">
+                    Collecté automatiquement à l'ouverture de la session : appareil, navigateur, réseau,
+                    temps avant la première frappe et temps de rédaction. Aucune donnée personnelle.
+                </p>
+                <div id="technical-empty" class="no-data">
+                    <p>Pas encore de données techniques</p>
+                </div>
+                <div id="technical-panel" class="hidden">
+                    <div class="stats mb-6">
+                        <div class="stat-card">
+                            <div class="stat-label">Sessions ouvertes</div>
+                            <div class="stat-number" id="tech-joins">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Feedbacks envoyés</div>
+                            <div class="stat-number" id="tech-submits">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Taux de complétion</div>
+                            <div class="stat-number" id="tech-conversion">0 %</div>
+                        </div>
+                    </div>
+                    <div id="technical-lines" class="text-sm"></div>
+                    <table class="feedbacks-table mt-4">
+                        <thead>
+                            <tr><th>Appareil</th><th>Navigateur</th><th>Connexion</th><th>Pays</th></tr>
+                        </thead>
+                        <tbody id="technical-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- Danger zone (guarded: typed confirmation + automatic backup) -->
         <section>
             <details class="card danger-zone">
@@ -180,6 +218,7 @@
             document.getElementById('edit-code-btn').addEventListener('click', editUniqueCode);
             document.getElementById('download-wordcloud-btn').addEventListener('click', downloadWordcloud);
             document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
+            loadTechnicalInsights();
         });
 
         async function editUniqueCode() {
@@ -438,6 +477,41 @@
             } catch (error) {
                 console.error('Error exporting CSV:', error);
                 alert('Erreur lors de l\'export CSV');
+            }
+        }
+
+
+        async function loadTechnicalInsights() {
+            try {
+                const response = await fetch('/api/insights/technical');
+                if (!response.ok) return;
+                const data = await response.json();
+                const insights = data.insights || {};
+                const summary = data.summary || {};
+                window.currentTechnical = summary;
+
+                const hasData = (insights.joins || 0) + (insights.submits || 0) > 0;
+                document.getElementById('technical-empty').classList.toggle('hidden', hasData);
+                document.getElementById('technical-panel').classList.toggle('hidden', !hasData);
+                if (!hasData) return;
+
+                document.getElementById('tech-joins').textContent = insights.joins || 0;
+                document.getElementById('tech-submits').textContent = insights.submits || 0;
+                document.getElementById('tech-conversion').textContent = (insights.conversion_rate || 0) + ' %';
+
+                const lines = (summary.lines || []).slice(0, 8);
+                document.getElementById('technical-lines').innerHTML = lines
+                    .map(line => `<p class="mb-2">• ${line}</p>`)
+                    .join('');
+
+                const devices = (insights.device_types || []).map(d => d.label).join(', ') || '—';
+                const browsers = (insights.browsers || []).map(d => d.label).join(', ') || '—';
+                const connections = (insights.connection_types || []).map(d => d.label).join(', ') || '—';
+                const countries = (insights.countries || []).map(d => `${d.label} (${d.count})`).join(', ') || '—';
+                document.getElementById('technical-table-body').innerHTML = `
+                    <tr><td>${devices}</td><td>${browsers}</td><td>${connections}</td><td>${countries}</td></tr>`;
+            } catch (error) {
+                console.error('Technical insights error:', error);
             }
         }
 
@@ -749,7 +823,8 @@
                     body: JSON.stringify({
                         wordcloud_image: currentWordcloudImage,
                         analysis_text: currentAnalysisData,
-                        context: document.getElementById('context').value.trim()
+                        context: document.getElementById('context').value.trim(),
+                        technical: window.currentTechnical || null
                     })
                 });
 

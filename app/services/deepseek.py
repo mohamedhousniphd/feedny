@@ -11,7 +11,8 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
 DEEPSEEK_EFFORT = os.getenv("DEEPSEEK_EFFORT", "low")
 
 
-def _generate_prompts(feedbacks: list[str], context: str, emotions: Optional[list[int]] = None) -> tuple[str, str]:
+def _generate_prompts(feedbacks: list[str], context: str, emotions: Optional[list[int]] = None,
+                      technical_lines: Optional[list[str]] = None) -> tuple[str, str]:
     # Combine feedbacks with emotions if available
     feedbacks_text = ""
     for i, fb in enumerate(feedbacks):
@@ -49,11 +50,21 @@ Format de réponse (sois concis):
 
 Écris en français. Sois direct et concis."""
 
+    technical_block = ""
+    if technical_lines:
+        technical_block = (
+            "\nContexte technique anonyme (collecté passivement, sans consentement "
+            "spécifique : type d'appareil, navigateur, réseau, durée de rédaction):\n"
+            + "\n".join(f"- {line}" for line in technical_lines)
+            + "\nUtilise ces éléments pour nuancer les recommandations "
+            "(ex: majorité sur mobile -> supports légers ; réseau lent -> éviter les vidéos lourdes).\n"
+        )
+
     user_prompt = f"""Contexte: {context if context else "Non spécifié"}
 
 Feedbacks des étudiants:
 {feedbacks_text}{emotion_summary}
-
+{technical_block}
 Génère un résumé concis et actionnable."""
 
     return system_prompt, user_prompt
@@ -77,7 +88,8 @@ async def analyze_feedbacks(
     feedbacks: list[str],
     context: str,
     max_tokens: int = 1200,
-    emotions: Optional[list[int]] = None
+    emotions: Optional[list[int]] = None,
+    technical_lines: Optional[list[str]] = None
 ) -> Optional[str]:
     """
     Analyze feedbacks using DeepSeek API with optimized settings.
@@ -99,7 +111,7 @@ async def analyze_feedbacks(
         print("Warning: No feedbacks to analyze")
         return None
 
-    system_prompt, user_prompt = _generate_prompts(feedbacks, context, emotions)
+    system_prompt, user_prompt = _generate_prompts(feedbacks, context, emotions, technical_lines)
     payload = _create_payload(system_prompt, user_prompt, max_tokens)
 
     try:

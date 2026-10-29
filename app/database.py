@@ -73,6 +73,44 @@ def init_db():
             conn.execute("ALTER TABLE feedbacks ADD COLUMN teacher_id INTEGER DEFAULT 1")
             conn.commit()
 
+        _migrate_client_events(conn)
+        _migrate_analysis_history(conn)
+
+
+CLIENT_EVENT_COLUMNS = {
+    "first_input_seconds": "REAL",
+    "typing_seconds": "REAL",
+    "total_seconds": "REAL",
+    "keystrokes": "INTEGER",
+    "backspaces": "INTEGER",
+    "pasted": "BOOLEAN",
+    "paste_chars": "INTEGER",
+    "idle_seconds": "REAL",
+}
+
+
+def _migrate_analysis_history(conn):
+    """Add the anonymous technical snapshot column to analysis history."""
+    try:
+        existing = {row["name"] for row in conn.execute("PRAGMA table_info(analysis_history)")}
+    except sqlite3.Error:
+        return
+    if "technical_context" not in existing:
+        conn.execute("ALTER TABLE analysis_history ADD COLUMN technical_context TEXT")
+        conn.commit()
+
+
+def _migrate_client_events(conn):
+    """Add timing columns to client_events on existing databases."""
+    try:
+        existing = {row["name"] for row in conn.execute("PRAGMA table_info(client_events)")}
+    except sqlite3.Error:
+        return
+    for column, column_type in CLIENT_EVENT_COLUMNS.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE client_events ADD COLUMN {column} {column_type}")
+    conn.commit()
+
 
 def insert_feedback(content: str, device_id: str, emotion: Optional[int] = None, teacher_id: int = 1) -> int:
     """Insert a new feedback and return its ID."""
@@ -282,6 +320,128 @@ def reset_database(teacher_id: Optional[int] = None):
         conn.commit()
 
 
+def save_client_event(event: str, teacher_id: Optional[int], device_id: Optional[str], data: dict) -> int:
+    """Store one anonymous technical event ('join' or 'submit')."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO client_events (
+                event, teacher_id, device_id, device_type, browser, os, user_agent,
+                platform, language, timezone, screen, viewport, connection_type,
+                downlink, rtt, save_data, touch, memory_gb, cores, country,
+                referrer, fill_seconds, first_input_seconds, typing_seconds,
+                total_seconds, keystrokes, backspaces, pasted, paste_chars, idle_seconds
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event, teacher_id, device_id,
+                data.get("device_type"), data.get("browser"), data.get("os"),
+                data.get("user_agent"), data.get("platform"), data.get("language"),
+                data.get("timezone"), data.get("screen"), data.get("viewport"),
+                data.get("connection_type"), data.get("downlink"), data.get("rtt"),
+                data.get("save_data"), data.get("touch"), data.get("memory_gb"),
+                data.get("cores"), data.get("country"), data.get("referrer"),
+                data.get("fill_seconds"), data.get("first_input_seconds"),
+                data.get("typing_seconds"), data.get("total_seconds"),
+                data.get("keystrokes"), data.get("backspaces"), data.get("pasted"),
+                data.get("paste_chars"), data.get("idle_seconds"),
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def _count_by(conn, column: str, teacher_id: Optional[int], event: str = "submit") -> list[dict]:
+    if teacher_id is None:
+        rows = conn.execute(
+            f"""SELECT COALESCE({column}, 'inconnu') AS label, COUNT(*) AS count
+                FROM client_events WHERE event = ?
+                GROUP BY label ORDER BY count DESC""",
+            (event,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"""SELECT COALESCE({column}, 'inconnu') AS label, COUNT(*) AS count
+                FROM client_events WHERE event = ? AND teacher_id = ?
+                GROUP BY label ORDER BY count DESC""",
+            (event, teacher_id),
+        ).fetchall()
+    return [{"label": row["label"], "count": row["count"]} for row in rows]
+
+
+def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
+    """Aggregate anonymous technical context for the dashboard."""
+    where = "event = ? AND teacher_id = ?" if teacher_id is not None else "event = ?"
+    join_where = "event = ? AND teacher_id = ?" if teacher_id is not None else "event = ?"
+    base_params = (teacher_id,) if teacher_id is not None else ()
+
+    with get_db() as conn:
+        joins = conn.execute(
+            f"SELECT COUNT(*) FROM client_events WHERE {join_where}",
+            ("join",) + base_params,
+        ).fetchone()[0]
+        submits = conn.execute(
+            f"SELECT COUNT(*) FROM client_events WHERE {join_where}",
+            ("submit",) + base_params,
+        ).fetchone()[0]
+
+        timing = conn.execute(
+            f"""SELECT AVG(fill_seconds) AS avg_fill,
+                       AVG(first_input_seconds) AS avg_first_input,
+                       AVG(typing_seconds) AS avg_typing,
+                       AVG(total_seconds) AS avg_total,
+                       AVG(idle_seconds) AS avg_idle,
+                       AVG(keystrokes) AS avg_keystrokes,
+                       AVG(backspaces) AS avg_backspaces,
+                       SUM(CASE WHEN pasted = 1 THEN 1 ELSE 0 END) AS pasted,
+                       COUNT(fill_seconds) AS timed
+                FROM client_events WHERE {where}""",
+            ("submit",) + base_params,
+        ).fetchone()
+        latency = conn.execute(
+            f"""SELECT AVG(rtt) AS avg_rtt
+                FROM client_events WHERE {where} AND rtt IS NOT NULL""",
+            ("submit",) + base_params,
+        ).fetchone()
+        slow_share = conn.execute(
+            f"""SELECT
+                    SUM(CASE WHEN connection_type IN ('slow-2g','2g','3g') THEN 1 ELSE 0 END) AS slow,
+                    COUNT(*) AS total
+                FROM client_events WHERE {where} AND connection_type IS NOT NULL""",
+            ("submit",) + base_params,
+        ).fetchone()
+        dates = conn.execute(
+            f"""SELECT MIN(created_at) AS first_seen, MAX(created_at) AS last_seen
+                FROM client_events WHERE {join_where}""",
+            ("join",) + base_params,
+        ).fetchone()
+
+        return {
+            "joins": joins,
+            "submits": submits,
+            "conversion_rate": round((submits / joins) * 100, 1) if joins else 0.0,
+            "avg_fill_seconds": round(timing["avg_fill"], 1) if timing and timing["avg_fill"] else None,
+            "avg_first_input_seconds": round(timing["avg_first_input"], 1) if timing and timing["avg_first_input"] else None,
+            "avg_typing_seconds": round(timing["avg_typing"], 1) if timing and timing["avg_typing"] else None,
+            "avg_total_seconds": round(timing["avg_total"], 1) if timing and timing["avg_total"] else None,
+            "avg_idle_seconds": round(timing["avg_idle"], 1) if timing and timing["avg_idle"] else None,
+            "avg_keystrokes": round(timing["avg_keystrokes"], 0) if timing and timing["avg_keystrokes"] else None,
+            "avg_backspaces": round(timing["avg_backspaces"], 0) if timing and timing["avg_backspaces"] else None,
+            "paste_rate": round((timing["pasted"] or 0) / submits * 100, 1) if submits and timing else None,
+            "timed_submits": timing["timed"] if timing else 0,
+            "avg_rtt_ms": round(latency["avg_rtt"], 0) if latency and latency["avg_rtt"] else None,
+            "slow_network_share": round((slow_share["slow"] or 0) / slow_share["total"] * 100, 1) if slow_share and slow_share["total"] else None,
+            "first_seen": dates["first_seen"] if dates else None,
+            "last_seen": dates["last_seen"] if dates else None,
+            "device_types": _count_by(conn, "device_type", teacher_id),
+            "browsers": _count_by(conn, "browser", teacher_id),
+            "os": _count_by(conn, "os", teacher_id),
+            "connection_types": _count_by(conn, "connection_type", teacher_id),
+            "countries": _count_by(conn, "country", teacher_id),
+            "screens": _count_by(conn, "viewport", teacher_id),
+        }
+
+
 def get_feedback_stats(teacher_id: int = 1) -> dict:
     """Get statistics about feedbacks for a specific teacher."""
     with get_db() as conn:
@@ -486,13 +646,15 @@ def get_all_teachers() -> list[dict]:
         return [dict(row) for row in cursor.fetchall()]
 
 
-def save_analysis(teacher_id: int, summary: str, wordcloud_image: str, feedback_count: int, context: str) -> int:
-    """Save an analysis to history."""
+def save_analysis(teacher_id: int, summary: str, wordcloud_image: str, feedback_count: int, context: str,
+                  technical_context: Optional[str] = None) -> int:
+    """Save an analysis to history (with the anonymous technical snapshot)."""
     with get_db() as conn:
         cursor = conn.execute(
-            """INSERT INTO analysis_history (teacher_id, summary, wordcloud_image, feedback_count, context)
-               VALUES (?, ?, ?, ?, ?)""",
-            (teacher_id, summary, wordcloud_image, feedback_count, context)
+            """INSERT INTO analysis_history
+               (teacher_id, summary, wordcloud_image, feedback_count, context, technical_context)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (teacher_id, summary, wordcloud_image, feedback_count, context, technical_context)
         )
         conn.commit()
         return cursor.lastrowid
@@ -502,7 +664,7 @@ def get_analysis_history(teacher_id: int, limit: int = 20) -> list[dict]:
     """Get analysis history for a teacher."""
     with get_db() as conn:
         cursor = conn.execute(
-            """SELECT id, summary, wordcloud_image, feedback_count, context, created_at
+            """SELECT id, summary, wordcloud_image, feedback_count, context, technical_context, created_at
                FROM analysis_history
                WHERE teacher_id = ?
                ORDER BY created_at DESC

@@ -11,7 +11,7 @@ from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Image
+    SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 )
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.pdfbase import pdfmetrics
@@ -126,7 +126,8 @@ def create_analysis_pdf(
     wordcloud_image_base64: str,
     analysis_text: str,
     context: str = "",
-    title: str = "Feedny - Analyse des Feedbacks"
+    title: str = "Feedny - Analyse des Feedbacks",
+    technical: Optional[dict] = None
 ) -> bytes:
     """
     Create a PDF slide with wordcloud on left and analysis on right.
@@ -201,6 +202,16 @@ def create_analysis_pdf(
         fontName=_FONT_NAME
     )
     
+    small_style = ParagraphStyle(
+        'SmallStyle',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.black,
+        leading=12,
+        spaceAfter=2,
+        fontName=_FONT_NAME
+    )
+
     section_heading = ParagraphStyle(
         'SectionHeading',
         parent=styles['Heading2'],
@@ -282,6 +293,45 @@ def create_analysis_pdf(
             story.append(Paragraph(process_multilingual_text(line), analysis_style))
 
     
+    # Anonymous technical context (devices, network, timings)
+    technical = technical or {}
+    technical_lines = technical.get("lines") or []
+    if technical_lines:
+        story.append(PageBreak())
+        story.append(Paragraph("Annexe — contexte technique (anonyme)", section_heading))
+        for line in technical_lines:
+            story.append(Paragraph(process_multilingual_text("• " + clean_markdown(line)), small_style))
+
+        rows = []
+        devices = technical.get("devices") or []
+        connections = technical.get("connections") or []
+        if devices:
+            rows.append(["Appareil", "Nombre"])
+            rows.extend([[clean_markdown(str(d.get("label"))), str(d.get("count"))] for d in devices[:5]])
+        if rows:
+            table = Table(rows, colWidths=[5 * cm, 3 * cm], hAlign='LEFT')
+            table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, -1), _FONT_NAME),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F3F4F6')),
+                ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#E5E7EB')),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            story.append(Spacer(1, 6))
+            story.append(table)
+
+        if connections:
+            story.append(Spacer(1, 6))
+            story.append(Paragraph(
+                process_multilingual_text(
+                    "Connexions : " + ", ".join(f"{c.get('label')} ({c.get('count')})" for c in connections[:5])
+                ),
+                small_style
+            ))
+
     # Build PDF
     doc.build(story)
     

@@ -89,7 +89,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.13"
+APP_VERSION = "1.2.14"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -310,9 +310,14 @@ async def forgot_password_page():
     return HTMLResponse(content=inject_common(html_content))
 
 
+SIGNUP_ENABLED = os.getenv("ENABLE_SIGNUP", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @app.get("/signup", response_class=HTMLResponse)
 async def signup_page():
-    """Signup page."""
+    """Signup page — disabled unless ENABLE_SIGNUP=true."""
+    if not SIGNUP_ENABLED:
+        return Response(status_code=302, headers={"Location": "/login"})
     html_content = await get_template("app/static/signup.html")
     return HTMLResponse(content=inject_common(html_content))
 
@@ -348,7 +353,10 @@ class TeacherSignup(FeedbackRequest.__base__): # Inherit BaseModel
 
 @app.post("/api/auth/signup")
 async def signup(data: TeacherSignup):
-    """Register a new teacher."""
+    """Register a new teacher (disabled unless ENABLE_SIGNUP=true)."""
+    if not SIGNUP_ENABLED:
+        raise HTTPException(status_code=403, detail="Les inscriptions sont désactivées.")
+
     # Validate invitation code
     # 1. Check against master admin code
     ADMIN_INVITE_CODE = os.getenv("ADMIN_INVITE_CODE", "FEEDNY2024")

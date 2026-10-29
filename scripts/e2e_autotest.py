@@ -99,6 +99,16 @@ def main() -> int:
     check("Landing: bouton 'Rejoindre une session'", "Rejoindre une session" in html)
     check("Landing: placeholder du code", f"Ex: {args.code}" in html)
     check("Landing: pas de 'cours' résiduel", "Code du cours" not in html and "Rejoindre un cours" not in html)
+    check("Landing: pas de mention de collecte de données", "données techniques anonymes" not in html)
+
+    # Inscriptions désactivées
+    r = client.get("/signup")
+    check("GET /signup redirige vers /login", r.status_code == 302 and r.headers.get("location") == "/login", f"{r.status_code} {r.headers.get('location')}")
+    r = client.post("/api/auth/signup", json={
+        "name": "Test", "email": f"test-{uuid.uuid4().hex[:6]}@example.com",
+        "password": "x", "invitation_code": "FEEDNY2024",
+    })
+    check("POST /api/auth/signup désactivé", r.status_code == 403, r.text[:80])
 
     # 3. Connexion admin
     r = client.post(

@@ -63,6 +63,8 @@ Checklist pour s'assurer que tout est prêt avant le déploiement en production.
 - [ ] Configurer `DEEPSEEK_API_KEY`
 - [ ] Configurer `DEEPSEEK_BASE_URL` (default: https://api.deepseek.com)
 - [ ] Configurer `DATABASE_URL` (default: sqlite:///./data/feedny.db)
+- [ ] Configurer `DB_PATH=/app/data/feedny.db` (prioritaire sur `DATABASE_URL`, obligatoire pour la persistance)
+- [ ] Configurer `ADMIN_CODE` (optionnel, default: `HOUSNI`)
 - [ ] Configurer `ALLOWED_ORIGINS` (votre domaine Railway)
 
 ### Stockage Persistant
@@ -70,7 +72,10 @@ Checklist pour s'assurer que tout est prêt avant le déploiement en production.
 - [ ] Créer un volume nommé `data`
 - [ ] Attacher le volume au path `/app/data`
 - [ ] Vérifier que le volume est connecté au service
+- [ ] Vérifier que `DB_PATH` pointe bien vers le volume (`/app/data/feedny.db`)
 - [ ] Tester la persistance: redéployer et vérifier les données
+- [ ] Sauvegarde manuelle: `railway volume files --volume feedny-volume download /feedny.db ./backup.db`
+
 
 ### Optimisation Coûts
 

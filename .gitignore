@@ -53,3 +53,7 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# E2E venv/artifacts
+.venv-e2e/
+e2e-artifacts/

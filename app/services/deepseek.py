@@ -5,6 +5,10 @@ from typing import Optional
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+# Latest DeepSeek model (V4.1 Flash). Override with DEEPSEEK_MODEL if needed.
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
+# Reasoning effort: low keeps summaries fast and cheap ("low" | "high" | "max")
+DEEPSEEK_EFFORT = os.getenv("DEEPSEEK_EFFORT", "low")
 
 
 def _generate_prompts(feedbacks: list[str], context: str, emotions: Optional[list[int]] = None) -> tuple[str, str]:
@@ -57,7 +61,8 @@ Génère un résumé concis et actionnable."""
 
 def _create_payload(system_prompt: str, user_prompt: str, max_tokens: int) -> dict:
     return {
-        "model": "deepseek-chat",
+        "model": DEEPSEEK_MODEL,
+        "effort": DEEPSEEK_EFFORT,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -71,7 +76,7 @@ def _create_payload(system_prompt: str, user_prompt: str, max_tokens: int) -> di
 async def analyze_feedbacks(
     feedbacks: list[str],
     context: str,
-    max_tokens: int = 500,
+    max_tokens: int = 1200,
     emotions: Optional[list[int]] = None
 ) -> Optional[str]:
     """
@@ -111,7 +116,12 @@ async def analyze_feedbacks(
 
             if response.status_code == 200:
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                message = data["choices"][0]["message"]
+                content = (message.get("content") or "").strip()
+                if not content:
+                    # Reasoning models may return only reasoning_content when truncated
+                    content = (message.get("reasoning_content") or "").strip()
+                return content or None
             else:
                 print(f"DeepSeek API error: {response.status_code} - {response.text}")
                 return None

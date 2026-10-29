@@ -76,7 +76,7 @@ from app.models import (
 from app.services.analysis import process_feedback_analysis
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.5"
+APP_VERSION = "1.2.6"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:

@@ -14,6 +14,16 @@ from pydantic import ValidationError
 
 import asyncio
 
+# Default question asked to students (used when a teacher has not set a custom one).
+# Focused on AI: needs, interest and expectations, to prepare training sessions.
+DEFAULT_QUESTION = (
+    "Quels sont vos besoins, votre intérêt et vos attentes concernant l'IA ? "
+    "Que souhaitez-vous apprendre ou améliorer en priorité ?"
+)
+
+# Default class code for the main admin account
+DEFAULT_ADMIN_CODE = "HOUSNI"
+
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -66,7 +76,7 @@ from app.models import (
 from app.services.analysis import process_feedback_analysis
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.4"
+APP_VERSION = "1.2.5"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -123,14 +133,16 @@ def sync_admin_account():
     admin_email = "mohamedhousni@afeedny.com"
     # Read password from environment, default to 'password123' if not set
     admin_password = os.getenv("TEACHER_PASSWORD", "password123")
-    
+    # Class code for the admin account (can be overridden by env)
+    admin_code = os.getenv("ADMIN_CODE", DEFAULT_ADMIN_CODE).strip().upper()
+
     admin_hash = get_password_hash(admin_password)
-    
+
     existing = get_teacher_by_email(admin_email)
     if not existing:
         # Create default admin with a fixed code
-        create_teacher("Mohamed HOUSNI", admin_email, admin_hash, "ADMIN", is_admin=True)
-        # We don't have the ID here directly without re-querying, 
+        create_teacher("Mohamed HOUSNI", admin_email, admin_hash, admin_code, is_admin=True)
+        # We don't have the ID here directly without re-querying,
         # but create_teacher handles insertion.
         # Let's ensure it has credits
         new_admin = get_teacher_by_email(admin_email)
@@ -139,6 +151,9 @@ def sync_admin_account():
     else:
         # Check if password needs synchronization (or just update it to be safe)
         update_teacher_password(admin_email, admin_hash)
+        # Keep the admin class code aligned with the expected value
+        if admin_code and (existing.get('unique_code') or '').upper() != admin_code:
+            update_teacher_code(existing['id'], admin_code)
 
 
 def get_device_id(request: Request) -> str:
@@ -213,7 +228,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
     # Inject data (handle optional spaces in tags)
     import re
     # Fetch teacher's specific question
-    question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
+    question = get_setting(f"question_{teacher['id']}", DEFAULT_QUESTION)
     
     html_content = re.sub(r'\{\{\s*device_id\s*\}\}', html.escape(str(device_id)), html_content)
     html_content = re.sub(r'\{\{\s*can_submit\s*\}\}', str(can_submit).lower(), html_content)
@@ -420,7 +435,7 @@ async def get_question(
     teacher: dict = Depends(get_current_teacher)
 ):
     """Get the current teacher question."""
-    question = get_setting(f"question_{teacher['id']}", "Comment s'est passé votre cours ?")
+    question = get_setting(f"question_{teacher['id']}", DEFAULT_QUESTION)
     return {"question": question}
 
 

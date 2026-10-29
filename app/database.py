@@ -5,7 +5,35 @@ from typing import Optional
 import uuid
 
 
-DATABASE_URL = "feedny.db"
+DEFAULT_DB_PATH = "feedny.db"
+
+
+def resolve_db_path() -> str:
+    """Resolve the SQLite file path.
+
+    Priority: DB_PATH > DATABASE_URL > DEFAULT_DB_PATH.
+
+    On Railway the database must live on a mounted volume (e.g. /app/data)
+    so that data survives redeploys and restarts.
+    """
+    raw = os.getenv("DB_PATH") or os.getenv("DATABASE_URL") or DEFAULT_DB_PATH
+    raw = raw.strip()
+    if raw.startswith("sqlite:///"):
+        raw = raw[len("sqlite:///"):]
+    elif raw.startswith("sqlite://"):
+        raw = raw[len("sqlite://"):]
+    return raw or DEFAULT_DB_PATH
+
+
+DATABASE_URL = resolve_db_path()
+
+# Make sure the parent directory exists (e.g. a mounted volume at /app/data).
+try:
+    _db_dir = os.path.dirname(os.path.abspath(DATABASE_URL))
+    if _db_dir:
+        os.makedirs(_db_dir, exist_ok=True)
+except OSError:
+    pass
 
 
 @contextmanager

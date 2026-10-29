@@ -89,7 +89,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.12"
+APP_VERSION = "1.2.13"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -201,8 +201,17 @@ async def get_current_teacher(request: Request) -> dict:
     return teacher
 
 
+# Uploads must survive redeploys: store them on the Railway volume when available
+UPLOAD_ROOT = os.getenv("UPLOAD_DIR", "/app/data/uploads")
+try:
+    os.makedirs(os.path.join(UPLOAD_ROOT, "receipts"), exist_ok=True)
+except OSError:
+    UPLOAD_ROOT = os.path.join("app", "static", "uploads")
+    os.makedirs(os.path.join(UPLOAD_ROOT, "receipts"), exist_ok=True)
+
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_ROOT), name="uploads")
 
 # Template Cache
 template_cache = {}
@@ -689,10 +698,14 @@ async def update_code(
     teacher: dict = Depends(get_current_teacher)
 ):
     """Update teacher's unique invite code."""
-    new_code = data.get("code")
-    if not new_code or len(new_code) < 3:
+    new_code = (data.get("code") or "").strip().upper()
+    if len(new_code) < 3:
         raise HTTPException(status_code=400, detail="Code trop court (min 3 caractères)")
-    
+    if len(new_code) > 20:
+        raise HTTPException(status_code=400, detail="Code trop long (max 20 caractères)")
+    if not all(char.isalnum() for char in new_code):
+        raise HTTPException(status_code=400, detail="Lettres et chiffres uniquement (sans espace ni accent)")
+
     success = update_teacher_code(teacher['id'], new_code)
     if not success:
         raise HTTPException(status_code=400, detail="Ce code est déjà utilisé, veuillez en choisir un autre")
@@ -903,7 +916,7 @@ async def upload_receipt(
 ):
     """Upload a payment receipt (images/PDF only, max 5 MB)."""
     # Ensure uploads directory exists
-    UPLOAD_DIR = "app/static/uploads/receipts"
+    UPLOAD_DIR = os.path.join(UPLOAD_ROOT, "receipts")
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     ALLOWED_RECEIPT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
@@ -931,7 +944,7 @@ async def upload_receipt(
         
     # Create receipt record
     # Store relative path for serving
-    relative_path = f"/static/uploads/receipts/{filename}"
+    relative_path = f"/uploads/receipts/{filename}"
     from app.database import create_payment_receipt
     create_payment_receipt(teacher['id'], relative_path)
     

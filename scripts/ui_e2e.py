@@ -63,8 +63,12 @@ def main() -> int:
         )
         page = student.new_page()
         def _console(msg):
-            if msg.type == "error" and "cloudflareinsights.com" not in msg.text:
-                console_errors.append(msg.text)
+            if msg.type != "error":
+                return
+            location = (msg.location or {}).get("url") or ""
+            if "cloudflareinsights.com" in msg.text or "cloudflareinsights.com" in location:
+                return
+            console_errors.append(f"{msg.text} ({location})")
 
         page.on("console", _console)
         page.on("pageerror", lambda exc: console_errors.append(str(exc)))
@@ -112,7 +116,15 @@ def main() -> int:
         teacher = browser.new_context(viewport={"width": 1440, "height": 1000})
         tpage = teacher.new_page()
         teacher_errors: list[str] = []
-        tpage.on("console", lambda msg: teacher_errors.append(msg.text) if msg.type == "error" else None)
+        def _tconsole(msg):
+            if msg.type != "error":
+                return
+            location = (msg.location or {}).get("url") or ""
+            if "cloudflareinsights.com" in msg.text or "cloudflareinsights.com" in location:
+                return
+            teacher_errors.append(f"{msg.text} ({location})")
+
+        tpage.on("console", _tconsole)
         tpage.on("pageerror", lambda exc: teacher_errors.append(str(exc)))
 
         tpage.goto(base + "/login", wait_until="networkidle")
@@ -135,8 +147,16 @@ def main() -> int:
         first_checkbox = tpage.query_selector(".feedback-checkbox")
         if first_checkbox and not first_checkbox.is_checked():
             first_checkbox.check()
+        dialogs: list[str] = []
+        tpage.on("dialog", lambda d: (dialogs.append(d.message), d.accept()))
         tpage.click("#analyze-btn")
-        tpage.wait_for_selector("#results-section:not(.hidden)", timeout=120000)
+        try:
+            tpage.wait_for_selector("#results-section:not(.hidden)", timeout=120000)
+        except Exception:
+            tpage.screenshot(path=str(outdir / "ui-5-analysis-failure.png"), full_page=True)
+            print("DIALOGS:", dialogs)
+            print("ERRORS:", teacher_errors[:5])
+            raise
         summary = tpage.inner_text("#summary-text")
         check("Analyse IA via l'UI", len(summary) > 80, f"{len(summary)} car.")
         check("Nuage de mots affiché", tpage.is_visible("#wordcloud-image"))

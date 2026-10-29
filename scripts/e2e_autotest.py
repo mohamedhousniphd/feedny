@@ -273,6 +273,18 @@ def main() -> int:
     r = client.get("/api/backups")
     check("GET /api/backups", r.status_code == 200 and r.json().get("count", 0) >= 1, f"{r.text[:80]}")
 
+    # 13b. Upload de reçu : whitelist + stockage persistant
+    r = client.post("/api/payment/upload", files={"file": ("preuve.html", b"<script>alert(1)</script>", "text/html")})
+    check("Upload .html refusé", r.status_code == 400, r.text[:80])
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6360000002000154a24f6d0000000049454e44ae426082")
+    r = client.post("/api/payment/upload", files={"file": ("preuve.png", png, "image/png")})
+    uploaded = (r.json() or {}).get("status") == "success"
+    check("Upload .png accepté", uploaded, r.text[:80])
+
+    # 13c. Code de session : caractères sûrs uniquement
+    r = client.post("/api/teacher/update_code", json={"code": "bad code!"})
+    check("Code de session invalide refusé", r.status_code == 400, r.text[:80])
+
     # 14. Suppression protégée
     r = client.post("/api/reset")
     check("POST /api/reset sans confirmation refusé", r.status_code == 400, r.text[:80])

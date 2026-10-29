@@ -89,7 +89,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.10"
+APP_VERSION = "1.2.11"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -843,7 +843,8 @@ async def forgot_password(data: dict = Body(...)):
         # Creating a reset page is better UX.
         # Let's create /reset-password page in main.py serving static file
         
-        reset_link = f"https://afeedny.up.railway.app/reset-password?token={reset_token}" # Replace with env var for domain
+        public_base_url = os.getenv("PUBLIC_BASE_URL", "https://afeedny.com")
+        reset_link = f"{public_base_url}/reset-password?token={reset_token}"
         
         resend.Emails.send({
             "from": "Afeedny <onboarding@resend.dev>", # or verified domain
@@ -900,19 +901,33 @@ async def upload_receipt(
     file: UploadFile = File(...),
     teacher: dict = Depends(get_current_teacher)
 ):
-    """Upload a payment receipt."""
+    """Upload a payment receipt (images/PDF only, max 5 MB)."""
     # Ensure uploads directory exists
     UPLOAD_DIR = "app/static/uploads/receipts"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    
-    # Save file
-    file_ext = os.path.splitext(file.filename)[1]
+
+    ALLOWED_RECEIPT_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+    MAX_RECEIPT_BYTES = 5 * 1024 * 1024
+
+    # Save file (extension whitelist: never serve HTML/JS from /static)
+    file_ext = os.path.splitext(file.filename or "")[1].lower()
+    if file_ext not in ALLOWED_RECEIPT_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Format non autorisé. Formats acceptés : PDF, JPG, PNG, WEBP.",
+        )
+
     filename = f"{uuid.uuid4()}{file_ext}"
     file_path = f"{UPLOAD_DIR}/{filename}"
-    
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Fichier vide.")
+    if len(content) > MAX_RECEIPT_BYTES:
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 5 Mo).")
+
     with open(file_path, "wb") as buffer:
-        import shutil
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(content)
         
     # Create receipt record
     # Store relative path for serving

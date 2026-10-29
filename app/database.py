@@ -320,8 +320,25 @@ def reset_database(teacher_id: Optional[int] = None):
         conn.commit()
 
 
+def recent_join_exists(teacher_id: Optional[int], device_id: Optional[str], minutes: int = 15) -> bool:
+    """Avoid flooding client_events when a student reloads the page."""
+    if not device_id:
+        return False
+    with get_db() as conn:
+        row = conn.execute(
+            """SELECT 1 FROM client_events
+               WHERE event = 'join' AND teacher_id = ? AND device_id = ?
+                 AND created_at >= datetime('now', ?)
+               LIMIT 1""",
+            (teacher_id, device_id, f"-{minutes} minutes"),
+        ).fetchone()
+        return bool(row)
+
+
 def save_client_event(event: str, teacher_id: Optional[int], device_id: Optional[str], data: dict) -> int:
     """Store one anonymous technical event ('join' or 'submit')."""
+    if event == "join" and recent_join_exists(teacher_id, device_id):
+        return 0
     with get_db() as conn:
         cursor = conn.execute(
             """
@@ -471,6 +488,12 @@ def import_feedbacks(feedbacks_data: list[dict]) -> int:
     without_created_at = []
 
     for fb in feedbacks_data:
+        if not isinstance(fb, dict) or not isinstance(fb.get('content'), str):
+            continue
+        content = fb['content'].strip()
+        if not content or len(content) > 2000:
+            continue
+        fb['content'] = content
         device_id = fb.get('device_id') or str(uuid.uuid4())
         created_at = fb.get('created_at')
         emotion = fb.get('emotion')

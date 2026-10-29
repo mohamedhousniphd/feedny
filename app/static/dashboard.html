@@ -614,7 +614,8 @@
         }
 
         function formatMarkdown(text) {
-            return text
+            // Escape first: AI summaries may echo student input (stored XSS guard)
+            return escapeHtml(text || '')
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>');
@@ -782,7 +783,8 @@
                     body: JSON.stringify({
                         wordcloud_image: a.wordcloud_image || '',
                         analysis_text: a.summary,
-                        context: a.context || ''
+                        context: a.context || '',
+                        technical: a.technical_context ? JSON.parse(a.technical_context) : null
                     })
                 });
                 if (response.ok) {

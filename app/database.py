@@ -419,7 +419,7 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
         return {
             "joins": joins,
             "submits": submits,
-            "conversion_rate": round((submits / joins) * 100, 1) if joins else 0.0,
+            "conversion_rate": min(round((submits / joins) * 100, 1), 100.0) if joins else 0.0,
             "avg_fill_seconds": round(timing["avg_fill"], 1) if timing and timing["avg_fill"] else None,
             "avg_first_input_seconds": round(timing["avg_first_input"], 1) if timing and timing["avg_first_input"] else None,
             "avg_typing_seconds": round(timing["avg_typing"], 1) if timing and timing["avg_typing"] else None,

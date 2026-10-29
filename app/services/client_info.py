@@ -108,7 +108,8 @@ def collect_client_context(
     """Normalise the browser payload into a storable, anonymous record."""
     payload = payload if isinstance(payload, dict) else {}
 
-    ua = _clean_str(user_agent or payload.get("userAgent"), _UA_MAX) or ""
+    # Prefer what the page reports (same value as the header for real browsers)
+    ua = _clean_str(payload.get("userAgent") or user_agent, _UA_MAX) or ""
     device_type, browser, os_name = parse_user_agent(ua)
 
     screen = payload.get("screen")

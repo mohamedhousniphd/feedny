@@ -104,6 +104,7 @@ def clean_markdown(text: str) -> str:
     """Strip emoji/markdown markers and convert **bold** to ReportLab <b>."""
     text = _EMOJI_PATTERN.sub("", text)
     text = text.replace("\u2022", "-").replace("\u2013", "-")
+    text = text.replace("\u2192", "->").replace("\u2190", "<-")
     text = html.escape(text, quote=False)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     text = text.replace("**", "").replace("*", "")

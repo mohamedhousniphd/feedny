@@ -216,11 +216,27 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             check("Modèles DeepSeek disponibles", False, str(exc))
 
-    # 13. Nettoyage
+    # 13. Sauvegardes (persistance)
+    r = client.post("/api/backup")
+    backup_ok = r.status_code == 200 and bool((r.json() or {}).get("backup"))
+    check("POST /api/backup (snapshot base)", backup_ok, (r.json().get("backup") or {}).get("name", r.text[:60]))
+    r = client.get("/api/backups")
+    check("GET /api/backups", r.status_code == 200 and r.json().get("count", 0) >= 1, f"{r.text[:80]}")
+
+    # 14. Suppression protégée
+    r = client.post("/api/reset")
+    check("POST /api/reset sans confirmation refusé", r.status_code == 400, r.text[:80])
+
+    # 15. Nettoyage (jamais silencieux : confirmation + sauvegarde)
     if not args.keep:
-        r = client.post("/api/reset")
+        r = client.post("/api/reset", json={"confirm": "SUPPRIMER"})
+        backup_name = (r.json() or {}).get("backup", "")
         r2 = client.get("/api/stats")
-        check("Nettoyage des données de démo", r.status_code == 200 and r2.json().get("total") == 0, r2.text[:60])
+        check(
+            "Nettoyage confirmé + sauvegarde auto",
+            r.status_code == 200 and r2.json().get("total") == 0 and bool(backup_name),
+            f"backup={backup_name or '—'} restant={r2.json().get('total')}",
+        )
 
     duration = time.time() - t0
     print(f"\nDurée totale : {duration:.1f}s — artefacts : {outdir.resolve()}")

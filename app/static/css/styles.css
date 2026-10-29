@@ -622,7 +622,7 @@ input::placeholder, textarea::placeholder {
         width: 100%;
         aspect-ratio: 1/1;
         height: auto;
-        font-size: 1.25rem;
+        font-size: clamp(1.35rem, 7vw, 1.9rem);
         padding: 0;
     }
 }
@@ -636,7 +636,7 @@ input::placeholder, textarea::placeholder {
         gap: 4px;
     }
     .emoji-btn {
-        font-size: 1.1rem;
+        font-size: 1.3rem;
     }
 }
 
@@ -647,6 +647,9 @@ input::placeholder, textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    line-height: 1;
+    padding: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background-color: var(--color-surface);

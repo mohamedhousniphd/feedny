@@ -10,7 +10,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 import asyncio
 
@@ -45,6 +45,9 @@ from app.database import (
     check_device_limit,
     increment_device_feedback,
     reset_database,
+    create_db_backup,
+    list_db_backups,
+    maybe_backup_daily,
     get_feedback_stats,
     import_feedbacks,
     get_setting,
@@ -76,7 +79,7 @@ from app.models import (
 from app.services.analysis import process_feedback_analysis
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.7"
+APP_VERSION = "1.2.8"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -127,6 +130,13 @@ async def get_template(filepath: str) -> str:
 async def startup_event():
     init_db()
     sync_admin_account()
+    # Safety net: one automatic DB snapshot per day (kept on the volume)
+    try:
+        backup = await asyncio.to_thread(maybe_backup_daily)
+        if backup:
+            print(f"Daily DB backup created: {backup['name']} ({backup['size']} bytes)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"Daily DB backup skipped: {exc}")
 
 def sync_admin_account():
     """Ensure the main admin account exists and matches environment variables."""
@@ -615,18 +625,58 @@ async def update_code(
     return {"status": "success", "new_code": new_code.upper()}
 
 
+@app.post("/api/backup")
+async def create_backup_endpoint(teacher: dict = Depends(get_current_teacher)):
+    """Create a snapshot of the database (teachers: their own data included)."""
+    backup = await asyncio.to_thread(create_db_backup, "manuel")
+    return {"success": True, "backup": backup}
+
+
+@app.get("/api/backups")
+async def list_backups_endpoint(teacher: dict = Depends(get_current_teacher)):
+    """List available DB snapshots (admin only)."""
+    if not teacher.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Non autorisé")
+    backups = await asyncio.to_thread(list_db_backups)
+    return {"backups": backups, "count": len(backups)}
+
+
+class ResetRequest(BaseModel):
+    confirm: str = ""
+
+
 @app.post("/api/reset")
 async def reset_database_endpoint(
-    request: Request,
+    data: Optional[ResetRequest] = Body(None),
     teacher: dict = Depends(get_current_teacher)
 ):
-    """Reset the database (teacher only)."""
+    """Delete feedbacks permanently.
+
+    Requires an explicit {"confirm": "SUPPRIMER"} body and always stores a
+    database snapshot first, so nothing is lost by accident.
+    """
+    if not data or (data.confirm or "").strip().upper() != "SUPPRIMER":
+        raise HTTPException(
+            status_code=400,
+            detail='Confirmation requise: envoyez {"confirm": "SUPPRIMER"}',
+        )
+
+    backup = await asyncio.to_thread(create_db_backup, "avant-suppression")
+
     if teacher.get('is_admin'):
         reset_database()
-        return {"success": True, "message": "Base de données réinitialisée (Admin)"}
+        return {
+            "success": True,
+            "message": "Base de données réinitialisée (Admin)",
+            "backup": backup["name"],
+        }
     else:
         reset_database(teacher['id'])
-        return {"success": True, "message": "Vos données ont été réinitialisées"}
+        return {
+            "success": True,
+            "message": "Vos données ont été réinitialisées",
+            "backup": backup["name"],
+        }
 
 
 def _generate_csv(feedbacks_list: list) -> str:

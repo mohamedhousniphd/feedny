@@ -18,8 +18,8 @@ def _generate_prompts(feedbacks: list[str], context: str, emotions: Optional[lis
         emotion_str = ""
         if emotions and i < len(emotions) and emotions[i]:
             emotion_labels = {
-                1: "très triste", 2: "triste", 3: "déçu", 4: "neutre", 5: "content",
-                6: "satisfait", 7: "heureux", 8: "très heureux", 9: "ravi", 10: "euphorique"
+                1: "très inquiet", 2: "inquiet", 3: "peu à l'aise", 4: "neutre", 5: "curieux",
+                6: "intéressé", 7: "motivé", 8: "très motivé", 9: "enthousiaste", 10: "très enthousiaste"
             }
             emotion_str = f" [État émotionnel: {emotion_labels.get(emotions[i], 'inconnu')}]"
         feedbacks_text += f"- {fb}{emotion_str}\n"

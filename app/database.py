@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 from typing import Optional
 import uuid
 
@@ -179,6 +180,94 @@ def increment_device_feedback(device_id: str):
                 last_feedback = CURRENT_TIMESTAMP
         """, (device_id,))
         conn.commit()
+
+
+def _backup_root() -> str:
+    """Directory where DB snapshots are stored (default: next to the DB file)."""
+    return os.getenv("BACKUP_DIR") or os.path.join(
+        os.path.dirname(os.path.abspath(DATABASE_URL)), "backups"
+    )
+
+
+def _backup_keep() -> int:
+    try:
+        return max(1, int(os.getenv("BACKUP_KEEP", "10")))
+    except ValueError:
+        return 10
+
+
+def create_db_backup(label: Optional[str] = None) -> dict:
+    """Create a consistent snapshot of the SQLite database.
+
+    Uses sqlite3's online backup API, so it is safe while the app is running
+    (it also captures the WAL content).
+    """
+    backup_dir = _backup_root()
+    os.makedirs(backup_dir, exist_ok=True)
+
+    timestamp = datetime.now()
+    suffix = f"-{label}" if label else ""
+    name = f"feedny-{timestamp.strftime('%Y%m%d-%H%M%S')}{suffix}.db"
+    dest = os.path.join(backup_dir, name)
+
+    with sqlite3.connect(DATABASE_URL) as source:
+        with sqlite3.connect(dest) as target:
+            source.backup(target)
+
+    prune_db_backups()
+    return {
+        "name": name,
+        "path": dest,
+        "size": os.path.getsize(dest),
+        "created_at": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def list_db_backups() -> list[dict]:
+    """List available DB snapshots, newest first."""
+    backup_dir = _backup_root()
+    if not os.path.isdir(backup_dir):
+        return []
+
+    backups = []
+    for filename in os.listdir(backup_dir):
+        if not (filename.startswith("feedny-") and filename.endswith(".db")):
+            continue
+        path = os.path.join(backup_dir, filename)
+        try:
+            stat = os.stat(path)
+        except OSError:
+            continue
+        backups.append({
+            "name": filename,
+            "size": stat.st_size,
+            "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    backups.sort(key=lambda item: item["created_at"], reverse=True)
+    return backups
+
+
+def prune_db_backups(keep: Optional[int] = None) -> int:
+    """Delete oldest snapshots, keeping the most recent `keep` ones."""
+    keep = keep if keep is not None else _backup_keep()
+    backups = list_db_backups()
+    removed = 0
+    for backup in backups[keep:]:
+        try:
+            os.remove(os.path.join(_backup_root(), backup["name"]))
+            removed += 1
+        except OSError:
+            continue
+    return removed
+
+
+def maybe_backup_daily() -> Optional[dict]:
+    """Create at most one automatic snapshot per day (called on startup)."""
+    today = datetime.now().strftime("%Y%m%d")
+    for backup in list_db_backups():
+        if backup["name"].startswith(f"feedny-{today}-") and "auto" in backup["name"]:
+            return None
+    return create_db_backup("auto")
 
 
 def reset_database(teacher_id: Optional[int] = None):

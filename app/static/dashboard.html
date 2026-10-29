@@ -47,7 +47,7 @@
             <button id="export-json-btn" class="btn btn-secondary">💾 Exporter JSON</button>
             <button id="import-json-btn" class="btn btn-secondary">📤 Importer JSON</button>
             <input type="file" id="import-file-input" class="hidden" accept=".json">
-            <button id="reset-btn" class="btn btn-danger">🗑️ Réinitialiser</button>
+            <button id="backup-btn" class="btn btn-secondary">🛡️ Sauvegarder la base</button>
         </section>
 
         <!-- Teacher Question -->
@@ -122,6 +122,18 @@
                 <p id="no-history" class="history-empty">Aucune analyse précédente</p>
             </div>
         </section>
+
+        <!-- Danger zone (guarded: typed confirmation + automatic backup) -->
+        <section>
+            <details class="card danger-zone">
+                <summary>🗑️ Supprimer des feedbacks (action définitive)</summary>
+                <p class="text-sm text-muted mt-4">
+                    Les feedbacks sont conservés dans la base indéfiniment. Une sauvegarde de la base
+                    est créée automatiquement avant toute suppression, pour pouvoir les restaurer.
+                </p>
+                <button id="reset-btn" class="btn btn-danger w-auto mx-auto d-block px-8 mt-4">Supprimer des feedbacks…</button>
+            </details>
+        </section>
     </div>
 
     <!-- Loading -->
@@ -162,6 +174,7 @@
             });
             document.getElementById('import-file-input').addEventListener('change', importJSON);
             document.getElementById('reset-btn').addEventListener('click', resetDatabase);
+            document.getElementById('backup-btn').addEventListener('click', backupDatabase);
             document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
             document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
             document.getElementById('edit-code-btn').addEventListener('click', editUniqueCode);
@@ -428,18 +441,49 @@
             }
         }
 
-        async function resetDatabase() {
-            if (!confirm('Êtes-vous sûr de vouloir supprimer tous les feedbacks?')) {
-                return;
+        async function backupDatabase() {
+            const btn = document.getElementById('backup-btn');
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Sauvegarde…';
+            try {
+                const response = await fetch('/api/backup', { method: 'POST' });
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const data = await response.json();
+                if (response.ok && data.backup) {
+                    const ko = Math.round((data.backup.size || 0) / 1024);
+                    alert(`Sauvegarde créée :\n${data.backup.name} (${ko} Ko)\n${data.backup.created_at}`);
+                } else {
+                    alert('Sauvegarde impossible : ' + (data.detail || 'erreur inconnue'));
+                }
+            } catch (error) {
+                console.error('Backup error:', error);
+                alert('Erreur de connexion. Veuillez réessayer.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
             }
+        }
 
-            if (!confirm('Cette action est irréversible. Continuer?')) {
+        async function resetDatabase() {
+            const answer = prompt(
+                'Action définitive : tous les feedbacks sélectionnés dans votre base seront supprimés.\n' +
+                'Une sauvegarde de la base est créée automatiquement avant la suppression.\n\n' +
+                'Tapez SUPPRIMER pour confirmer :'
+            );
+            if ((answer || '').trim().toUpperCase() !== 'SUPPRIMER') {
+                alert('Suppression annulée — aucune donnée n\'a été modifiée.');
                 return;
             }
 
             try {
                 const response = await fetch('/api/reset', {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: 'SUPPRIMER' })
                 });
 
                 if (response.status === 401) {
@@ -447,11 +491,12 @@
                     return;
                 }
 
+                const data = await response.json().catch(() => ({}));
                 if (response.ok) {
-                    alert('Base de données réinitialisée avec succès');
+                    alert('Feedbacks supprimés.\nSauvegarde disponible : ' + (data.backup || '—'));
                     location.reload();
                 } else {
-                    alert('Erreur lors de la réinitialisation');
+                    alert('Suppression refusée : ' + (data.detail || 'erreur inconnue'));
                 }
             } catch (error) {
                 console.error('Error resetting database:', error);

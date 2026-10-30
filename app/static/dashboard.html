@@ -184,6 +184,18 @@
                             <div class="stat-label">Taux de complétion</div>
                             <div class="stat-number" id="tech-conversion">0 %</div>
                         </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Chargement moyen</div>
+                            <div class="stat-number" id="tech-load">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Abandons</div>
+                            <div class="stat-number" id="tech-abandons">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Erreurs JS</div>
+                            <div class="stat-number" id="tech-errors">0</div>
+                        </div>
                     </div>
                     <div id="technical-lines" class="text-sm"></div>
                     <table class="feedbacks-table mt-4">
@@ -613,6 +625,11 @@
                 document.getElementById('tech-joins').textContent = insights.joins || 0;
                 document.getElementById('tech-submits').textContent = insights.submits || 0;
                 document.getElementById('tech-conversion').textContent = (insights.conversion_rate || 0) + ' %';
+                document.getElementById('tech-load').textContent = insights.avg_load_ms
+                    ? (insights.avg_load_ms / 1000).toFixed(1) + ' s'
+                    : '—';
+                document.getElementById('tech-abandons').textContent = insights.abandons || 0;
+                document.getElementById('tech-errors').textContent = (data.errors || {}).total || 0;
 
                 const lines = (summary.lines || []).slice(0, 8);
                 document.getElementById('technical-lines').innerHTML = lines

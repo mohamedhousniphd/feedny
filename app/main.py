@@ -53,6 +53,8 @@ from app.database import (
     maybe_backup_daily,
     get_feedback_stats,
     get_technical_insights,
+    get_client_errors,
+    save_client_error,
     save_client_event,
     import_feedbacks,
     get_setting,
@@ -72,6 +74,7 @@ from app.models import (
     FeedbackRequest,
     ClientInfoRequest,
     ClientInfoResponse,
+    ClientErrorRequest,
     FeedbackResponse,
     FeedbackListResponse,
     TeacherLoginRequest,
@@ -91,7 +94,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.18"
+APP_VERSION = "1.2.19"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -281,7 +284,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
             value=device_id,
             max_age=365*24*60*60,
             httponly=True,
-            secure=True,
+            secure=COOKIE_SECURE,
             samesite="strict"
         )
     
@@ -291,7 +294,7 @@ async def student_page(request: Request, code: Optional[str] = Query(None)):
         value=code.upper(),
         max_age=30*24*60*60, # 30 days
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         samesite="strict"
     )
 
@@ -313,6 +316,9 @@ async def forgot_password_page():
 
 
 SIGNUP_ENABLED = os.getenv("ENABLE_SIGNUP", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+# Cookies are Secure by default; disable only for local HTTP testing
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 @app.get("/signup", response_class=HTMLResponse)
@@ -401,7 +407,7 @@ async def login(username: str = Form(...), password: str = Form(...), response: 
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         samesite="strict"
     )
@@ -466,7 +472,7 @@ async def submit_feedback(
         value=device_id,
         max_age=365*24*60*60,
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         samesite="strict"
     )
 
@@ -505,9 +511,43 @@ async def collect_client_info(
             referrer=http_request.headers.get("referer"),
             fill_seconds=request.fill_seconds,
         )
-        save_client_event("join", teacher['id'], device_id, context)
+        event_type = (request.event or "").strip().lower()
+        if event_type not in {"join", "leave"}:
+            event_type = "leave" if context.get("left_without_submit") else "join"
+        save_client_event(event_type, teacher['id'], device_id, context)
     except Exception as exc:  # telemetry must never break the student flow
-        print(f"Join context skipped: {exc}")
+        print(f"Client context skipped: {exc}")
+
+    return ClientInfoResponse(status="ok")
+
+
+@app.post("/api/client-errors", response_model=ClientInfoResponse)
+async def collect_client_error(
+    request: ClientErrorRequest,
+    http_request: Request,
+):
+    """Record a JS error from the student page (anonymous, rate-limited)."""
+    code = http_request.cookies.get("teacher_code")
+    teacher = get_teacher_by_code(code) if code else None
+    if not teacher:
+        return ClientInfoResponse(status="ignored")
+
+    try:
+        save_client_error(
+            teacher['id'],
+            get_device_id(http_request),
+            {
+                "message": request.message,
+                "source": request.source,
+                "line": request.line,
+                "column": request.column,
+                "stack": request.stack,
+                "url": request.url,
+                "user_agent": http_request.headers.get("user-agent", ""),
+            },
+        )
+    except Exception as exc:
+        print(f"Client error skipped: {exc}")
 
     return ClientInfoResponse(status="ok")
 
@@ -518,9 +558,11 @@ async def technical_insights(
 ):
     """Anonymous technical context: devices, network, timing, participation."""
     insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
+    errors = await asyncio.to_thread(get_client_errors, teacher['id'])
     return {
         "insights": insights,
         "summary": summarize_technical(insights),
+        "errors": errors,
     }
 
 
@@ -645,6 +687,9 @@ async def analyze_feedbacks_endpoint(
         # Anonymous technical context (device, network, timing) — included in the report
         insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
         technical = summarize_technical(insights)
+        errors = await asyncio.to_thread(get_client_errors, teacher['id'], 5)
+        if errors.get("total"):
+            technical["lines"].append(f"Erreurs JS signalées par les navigateurs : {errors['total']}.")
 
         # Process feedback analysis (wordcloud and DeepSeek AI analysis)
         summary, wordcloud_base64 = await process_feedback_analysis(

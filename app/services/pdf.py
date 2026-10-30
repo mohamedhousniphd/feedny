@@ -324,14 +324,6 @@ def create_analysis_pdf(
             story.append(Spacer(1, 6))
             story.append(table)
 
-        if connections:
-            story.append(Spacer(1, 6))
-            story.append(Paragraph(
-                process_multilingual_text(
-                    "Connexions : " + ", ".join(f"{c.get('label')} ({c.get('count')})" for c in connections[:5])
-                ),
-                small_style
-            ))
 
     # Build PDF
     doc.build(story)

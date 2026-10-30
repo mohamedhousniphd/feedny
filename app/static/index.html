@@ -87,7 +87,9 @@
             backspaces: 0,
             pasted: false,
             pasteChars: 0,
-            maxIdleMs: 0
+            maxIdleMs: 0,
+            lcpMs: null,
+            submitted: false
         };
 
         function collectClientInfo() {
@@ -114,6 +116,58 @@
             };
         }
 
+        function prefers(query) {
+            try { return window.matchMedia && window.matchMedia(query).matches; } catch (e) { return null; }
+        }
+
+        function performancePayload() {
+            const navEntry = (performance.getEntriesByType('navigation') || [])[0] || {};
+            const paint = performance.getEntriesByType('paint') || [];
+            const firstPaint = paint.find(entry => entry.name === 'first-paint');
+            return {
+                ttfbMs: navEntry.responseStart ? Math.round(navEntry.responseStart) : null,
+                domReadyMs: navEntry.domContentLoadedEventEnd ? Math.round(navEntry.domContentLoadedEventEnd) : null,
+                loadMs: navEntry.loadEventEnd ? Math.round(navEntry.loadEventEnd) : null,
+                firstPaintMs: firstPaint ? Math.round(firstPaint.startTime) : null,
+                lcpMs: telemetry.lcpMs,
+                pageSeconds: +((performance.now() - PAGE_LOADED_AT) / 1000).toFixed(1),
+                prefersDark: prefers('(prefers-color-scheme: dark)'),
+                reducedMotion: prefers('(prefers-reduced-motion: reduce)'),
+                highContrast: prefers('(prefers-contrast: more)'),
+                pointerType: prefers('(pointer: coarse)') ? 'coarse' : (prefers('(pointer: fine)') ? 'fine' : null),
+                hoverCapable: prefers('(hover: hover)'),
+                dpr: window.devicePixelRatio || null,
+                orientation: (screen.orientation && screen.orientation.type) || null
+            };
+        }
+
+        // Largest Contentful Paint (best-effort, no permission)
+        try {
+            new PerformanceObserver((list) => {
+                const entries = list.getEntries();
+                if (entries.length) telemetry.lcpMs = Math.round(entries[entries.length - 1].startTime);
+            }).observe({ type: 'largest-contentful-paint', buffered: true });
+        } catch (e) { /* not supported */ }
+
+        // JS errors: report to the server (anonymous, rate-limited server-side)
+        function reportError(message, source, line, column, stack) {
+            try {
+                const body = JSON.stringify({ message: String(message || '').slice(0, 480), source, line, column, stack, url: location.href });
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/client-errors', new Blob([body], { type: 'application/json' }));
+                } else {
+                    fetch('/api/client-errors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+                }
+            } catch (e) { /* never recurse */ }
+        }
+        window.addEventListener('error', (event) => {
+            reportError(event.message, event.filename, event.lineno, event.colno, event.error && event.error.stack);
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event.reason || {};
+            reportError(reason.message || String(reason), null, null, null, reason.stack);
+        });
+
         function markFirstInput() {
             if (telemetry.firstInputAt === null) {
                 telemetry.firstInputAt = performance.now();
@@ -138,14 +192,35 @@
 
         function sendJoinEvent() {
             try {
-                const payload = Object.assign(collectClientInfo(), timingPayload());
+                const payload = Object.assign(collectClientInfo(), performancePayload(), timingPayload());
                 fetch('/api/client-info', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ client_info: payload })
+                    body: JSON.stringify({ client_info: payload, event: 'join' })
                 }).catch(() => {});
             } catch (e) { /* telemetry must never block the form */ }
         }
+
+        function sendLeaveEvent() {
+            try {
+                if (telemetry.submitted) return;
+                const payload = Object.assign(collectClientInfo(), performancePayload(), timingPayload(), {
+                    leftWithoutSubmit: true,
+                    pageSeconds: +((performance.now() - PAGE_LOADED_AT) / 1000).toFixed(1)
+                });
+                const body = JSON.stringify({ client_info: payload, event: 'leave' });
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/client-info', new Blob([body], { type: 'application/json' }));
+                } else {
+                    fetch('/api/client-info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {});
+                }
+            } catch (e) { /* never block */ }
+        }
+
+        window.addEventListener('pagehide', sendLeaveEvent);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') sendLeaveEvent();
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             const textarea = document.getElementById('feedback-content');
@@ -210,7 +285,7 @@
                 submitBtn.textContent = 'Envoi...';
 
                 const timing = timingPayload();
-                const clientInfo = Object.assign(collectClientInfo(), timing);
+                const clientInfo = Object.assign(collectClientInfo(), performancePayload(), timing);
 
                 try {
                     const response = await fetch('/api/feedback', {
@@ -225,6 +300,7 @@
                     });
 
                     if (response.ok) {
+                        telemetry.submitted = true;
                         document.getElementById('feedback-form').classList.add('hidden');
                         document.getElementById('success-message').classList.remove('hidden');
                     } else {

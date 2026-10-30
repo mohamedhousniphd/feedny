@@ -12,9 +12,20 @@ class FeedbackRequest(BaseModel):
 
 
 class ClientInfoRequest(BaseModel):
-    """Anonymous technical context posted when a student joins a session."""
+    """Anonymous technical context posted when a student joins or leaves."""
     client_info: Optional[dict] = None
     fill_seconds: Optional[float] = Field(None, ge=0, le=86400)
+    event: Optional[str] = Field(None, description="join | leave")
+
+
+class ClientErrorRequest(BaseModel):
+    """Browser-side JS error (anonymous)."""
+    message: str = Field(..., max_length=500)
+    source: Optional[str] = Field(None, max_length=300)
+    line: Optional[int] = None
+    column: Optional[int] = None
+    stack: Optional[str] = Field(None, max_length=1500)
+    url: Optional[str] = Field(None, max_length=300)
 
 
 class ClientInfoResponse(BaseModel):

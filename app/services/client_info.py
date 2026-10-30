@@ -131,6 +131,13 @@ def collect_client_context(
         "viewport": _clean_str(viewport, 20),
         "connection_type": _clean_str(payload.get("connectionType"), 20),
         "network_type": _clean_str(payload.get("networkType"), 20),
+        "pointer_type": _clean_str(payload.get("pointerType"), 20),
+        "hover_capable": _clean_bool(payload.get("hoverCapable")),
+        "dpr": _clean_number(payload.get("dpr")),
+        "orientation": _clean_str(payload.get("orientation"), 20),
+        "prefers_dark": _clean_bool(payload.get("prefersDark")),
+        "reduced_motion": _clean_bool(payload.get("reducedMotion")),
+        "high_contrast": _clean_bool(payload.get("highContrast")),
         "downlink": _clean_number(payload.get("downlink")),
         "rtt": _clean_number(payload.get("rtt")),
         "save_data": _clean_bool(payload.get("saveData")),
@@ -149,6 +156,14 @@ def collect_client_context(
         "pasted": _clean_bool(payload.get("pasted")),
         "paste_chars": _clean_int(payload.get("pasteChars")),
         "idle_seconds": _clean_number(payload.get("idleSeconds")),
+        # Page performance + abandonment
+        "ttfb_ms": _clean_number(payload.get("ttfbMs")),
+        "dom_ready_ms": _clean_number(payload.get("domReadyMs")),
+        "load_ms": _clean_number(payload.get("loadMs")),
+        "first_paint_ms": _clean_number(payload.get("firstPaintMs")),
+        "lcp_ms": _clean_number(payload.get("lcpMs")),
+        "page_seconds": _clean_number(payload.get("pageSeconds")),
+        "left_without_submit": _clean_bool(payload.get("leftWithoutSubmit")),
     }
 
 
@@ -170,7 +185,8 @@ def summarize_technical(insights: Optional[dict]) -> dict:
         return {"lines": [], "devices": [], "connections": [], "timing": {}, "countries": []}
 
     def top(items, limit=3):
-        return ", ".join(f"{item['label']} ({item['count']})" for item in (items or [])[:limit])
+        clean = [item for item in (items or []) if (item.get("label") or "").lower() not in {"inconnu", "unknown"}]
+        return ", ".join(f"{item['label']} ({item['count']})" for item in clean[:limit])
 
     devices = insights.get("device_types") or []
     browsers = insights.get("browsers") or []
@@ -186,16 +202,21 @@ def summarize_technical(insights: Optional[dict]) -> dict:
             f"Participation : {total_submits} feedback(s) envoyé(s) sur {insights.get('joins')} session(s) ouverte(s) "
             f"({insights.get('conversion_rate', 0)} % de conversion)."
         )
-    if devices:
-        lines.append(f"Appareils : {top(devices)}.")
-    if browsers:
-        lines.append(f"Navigateurs : {top(browsers)}." )
-    if systems:
-        lines.append(f"Systèmes : {top(systems)}.")
-    if networks:
-        lines.append(f"Réseau : {top(networks)} (wifi / cellulaire, tel que déclaré par l'appareil).")
-    if connections:
-        lines.append(f"Génération réseau estimée : {top(connections)} (le navigateur plafonne à 4G).")
+    for label, items in (
+        ("Appareils", devices),
+        ("Navigateurs", browsers),
+        ("Systèmes", systems),
+    ):
+        summary_value = top(items)
+        if summary_value:
+            lines.append(f"{label} : {summary_value}.")
+
+    networks_value = top(networks)
+    if networks_value:
+        lines.append(f"Réseau : {networks_value} (wifi / cellulaire, tel que déclaré par l'appareil).")
+    connections_value = top(connections)
+    if connections_value:
+        lines.append(f"Génération réseau estimée : {connections_value} (le navigateur plafonne à 4G).")
         if insights.get("avg_rtt_ms"):
             lines.append(f"Latence réseau moyenne : {insights['avg_rtt_ms']:.0f} ms.")
         if insights.get("avg_downlink_mbps"):
@@ -207,8 +228,9 @@ def summarize_technical(insights: Optional[dict]) -> dict:
             )
         if insights.get("slow_network_share") is not None:
             lines.append(f"Part de connexions lentes (2G/3G) : {insights['slow_network_share']} %.")
-    if countries:
-        lines.append(f"Pays (CDN, non nominatif) : {top(countries, 5)}.")
+    countries_value = top(countries, 5)
+    if countries_value:
+        lines.append(f"Pays (CDN, non nominatif) : {countries_value}.")
     if insights.get("avg_first_input_seconds") is not None:
         lines.append(
             "Temps avant la première frappe : "
@@ -231,6 +253,23 @@ def summarize_technical(insights: Optional[dict]) -> dict:
             f"Frappes moyennes : {insights['avg_keystrokes']:.0f} "
             f"(retours arrière : {insights.get('avg_backspaces') or 0:.0f})."
         )
+    if insights.get("avg_load_ms"):
+        lines.append(
+            "Chargement moyen de la page : "
+            f"{insights['avg_load_ms'] / 1000:.1f} s (TTFB {insights.get('avg_ttfb_ms') or 0:.0f} ms"
+            + (f", LCP {insights['avg_lcp_ms'] / 1000:.1f} s" if insights.get("avg_lcp_ms") else "")
+            + ")."
+        )
+    if insights.get("abandons"):
+        abandon = f"Abandons sans envoi : {insights['abandons']}"
+        if insights.get("avg_abandon_seconds"):
+            abandon += f" (après {_format_duration(insights['avg_abandon_seconds'])} en moyenne)"
+        lines.append(abandon + ".")
+    if insights.get("dark_share") is not None:
+        lines.append(
+            f"Préférences : mode sombre {insights['dark_share']} %, "
+            f"mouvement réduit {insights.get('reduced_motion_share') or 0} %."
+        )
     if insights.get("paste_rate") is not None:
         lines.append(f"Feedbacks collés (copier-coller) : {insights['paste_rate']} %.")
 
@@ -246,6 +285,13 @@ def summarize_technical(insights: Optional[dict]) -> dict:
         "slow_network_share": insights.get("slow_network_share"),
         "paste_rate": insights.get("paste_rate"),
         "keystrokes": insights.get("avg_keystrokes"),
+        "avg_load_ms": insights.get("avg_load_ms"),
+        "avg_ttfb_ms": insights.get("avg_ttfb_ms"),
+        "avg_lcp_ms": insights.get("avg_lcp_ms"),
+        "abandons": insights.get("abandons"),
+        "avg_abandon_seconds": insights.get("avg_abandon_seconds"),
+        "dark_share": insights.get("dark_share"),
+        "reduced_motion_share": insights.get("reduced_motion_share"),
     }
 
     return {

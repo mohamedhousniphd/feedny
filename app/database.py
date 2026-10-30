@@ -87,6 +87,20 @@ CLIENT_EVENT_COLUMNS = {
     "paste_chars": "INTEGER",
     "idle_seconds": "REAL",
     "network_type": "TEXT",
+    "ttfb_ms": "REAL",
+    "dom_ready_ms": "REAL",
+    "load_ms": "REAL",
+    "first_paint_ms": "REAL",
+    "lcp_ms": "REAL",
+    "page_seconds": "REAL",
+    "left_without_submit": "BOOLEAN",
+    "prefers_dark": "BOOLEAN",
+    "reduced_motion": "BOOLEAN",
+    "high_contrast": "BOOLEAN",
+    "pointer_type": "TEXT",
+    "hover_capable": "BOOLEAN",
+    "dpr": "REAL",
+    "orientation": "TEXT",
 }
 
 
@@ -395,8 +409,11 @@ def save_client_event(event: str, teacher_id: Optional[int], device_id: Optional
                 platform, language, timezone, screen, viewport, connection_type,
                 network_type, downlink, rtt, save_data, touch, memory_gb, cores, country,
                 referrer, fill_seconds, first_input_seconds, typing_seconds,
-                total_seconds, keystrokes, backspaces, pasted, paste_chars, idle_seconds
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                total_seconds, keystrokes, backspaces, pasted, paste_chars, idle_seconds,
+                ttfb_ms, dom_ready_ms, load_ms, first_paint_ms, lcp_ms, page_seconds,
+                left_without_submit, prefers_dark, reduced_motion, high_contrast,
+                pointer_type, hover_capable, dpr, orientation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event, teacher_id, device_id,
@@ -411,10 +428,58 @@ def save_client_event(event: str, teacher_id: Optional[int], device_id: Optional
                 data.get("typing_seconds"), data.get("total_seconds"),
                 data.get("keystrokes"), data.get("backspaces"), data.get("pasted"),
                 data.get("paste_chars"), data.get("idle_seconds"),
+                data.get("ttfb_ms"), data.get("dom_ready_ms"), data.get("load_ms"),
+                data.get("first_paint_ms"), data.get("lcp_ms"), data.get("page_seconds"),
+                data.get("left_without_submit"), data.get("prefers_dark"),
+                data.get("reduced_motion"), data.get("high_contrast"),
+                data.get("pointer_type"), data.get("hover_capable"),
+                data.get("dpr"), data.get("orientation"),
             ),
         )
         conn.commit()
         return cursor.lastrowid
+
+
+def save_client_error(teacher_id: Optional[int], device_id: Optional[str], data: dict) -> int:
+    """Store a JS error reported by the browser (anonymous)."""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM client_errors WHERE device_id = ? AND created_at >= datetime('now', '-1 hour')",
+            (device_id,),
+        ).fetchone()
+        if row and row[0] >= 10:  # anti-flood
+            return 0
+        cursor = conn.execute(
+            """INSERT INTO client_errors
+               (teacher_id, device_id, message, source, line, column_number, stack, url, user_agent)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                teacher_id, device_id,
+                (data.get("message") or "")[:500],
+                (data.get("source") or "")[:300],
+                data.get("line"), data.get("column"),
+                (data.get("stack") or "")[:1500],
+                (data.get("url") or "")[:300],
+                (data.get("user_agent") or "")[:400],
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+
+def get_client_errors(teacher_id: Optional[int] = None, limit: int = 10) -> dict:
+    """Recent JS errors + total count for the dashboard."""
+    where = "WHERE teacher_id = ?" if teacher_id is not None else ""
+    params = (teacher_id,) if teacher_id is not None else ()
+    with get_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM client_errors {where}", params).fetchone()[0]
+        rows = conn.execute(
+            f"""SELECT message, source, line, created_at
+                FROM client_errors {where}
+                ORDER BY created_at DESC LIMIT ?""",
+            params + (limit,),
+        ).fetchall()
+        return {"total": total, "recent": [dict(row) for row in rows]}
 
 
 def _count_by(conn, column: str, teacher_id: Optional[int], event: str = "submit") -> list[dict]:
@@ -501,6 +566,25 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             ("join",) + base_params,
         ).fetchone()
 
+        perf = conn.execute(
+            f"""SELECT AVG(load_ms) AS avg_load, AVG(ttfb_ms) AS avg_ttfb,
+                       AVG(first_paint_ms) AS avg_fp, AVG(lcp_ms) AS avg_lcp,
+                       AVG(page_seconds) AS avg_page,
+                       SUM(CASE WHEN prefers_dark = 1 THEN 1 ELSE 0 END) AS dark,
+                       SUM(CASE WHEN reduced_motion = 1 THEN 1 ELSE 0 END) AS reduced,
+                       COUNT(*) AS total
+                FROM client_events WHERE {join_where}""",
+            ("submit",) + base_params,
+        ).fetchone()
+
+        leaves = conn.execute(
+            f"""SELECT COUNT(DISTINCT COALESCE(device_id, id)) AS leaves,
+                       AVG(page_seconds) AS avg_left_seconds
+                FROM client_events
+                WHERE {join_where} AND left_without_submit = 1""",
+            ("leave",) + base_params,
+        ).fetchone()
+
         return {
             "joins": joins,
             "submits": submits,
@@ -518,6 +602,14 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             "avg_downlink_mbps": round(latency["avg_downlink"], 1) if latency and latency["avg_downlink"] else None,
             "fast_network_share": round((latency["fast"] or 0) / latency["measured"] * 100, 1) if latency and latency["measured"] else None,
             "slow_network_share": round((slow_share["slow"] or 0) / slow_share["total"] * 100, 1) if slow_share and slow_share["total"] else None,
+            "avg_load_ms": round(perf["avg_load"], 0) if perf and perf["avg_load"] else None,
+            "avg_ttfb_ms": round(perf["avg_ttfb"], 0) if perf and perf["avg_ttfb"] else None,
+            "avg_first_paint_ms": round(perf["avg_fp"], 0) if perf and perf["avg_fp"] else None,
+            "avg_lcp_ms": round(perf["avg_lcp"], 0) if perf and perf["avg_lcp"] else None,
+            "abandons": leaves["leaves"] if leaves else 0,
+            "avg_abandon_seconds": round(leaves["avg_left_seconds"], 0) if leaves and leaves["avg_left_seconds"] else None,
+            "dark_share": round((perf["dark"] or 0) / perf["total"] * 100, 1) if perf and perf["total"] else None,
+            "reduced_motion_share": round((perf["reduced"] or 0) / perf["total"] * 100, 1) if perf and perf["total"] else None,
             "first_seen": dates["first_seen"] if dates else None,
             "last_seen": dates["last_seen"] if dates else None,
             "device_types": _count_by(conn, "device_type", teacher_id),

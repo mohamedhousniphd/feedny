@@ -72,8 +72,39 @@ CREATE TABLE IF NOT EXISTS client_events (
     pasted BOOLEAN,
     paste_chars INTEGER,
     idle_seconds REAL,
+    ttfb_ms REAL,
+    dom_ready_ms REAL,
+    load_ms REAL,
+    first_paint_ms REAL,
+    lcp_ms REAL,
+    page_seconds REAL,
+    left_without_submit BOOLEAN,
+    prefers_dark BOOLEAN,
+    reduced_motion BOOLEAN,
+    high_contrast BOOLEAN,
+    pointer_type TEXT,
+    hover_capable BOOLEAN,
+    dpr REAL,
+    orientation TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS client_errors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    teacher_id INTEGER,
+    device_id TEXT,
+    message TEXT,
+    source TEXT,
+    line INTEGER,
+    column_number INTEGER,
+    stack TEXT,
+    url TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_errors_teacher
+    ON client_errors (teacher_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_client_events_teacher
     ON client_events (teacher_id, event, created_at);

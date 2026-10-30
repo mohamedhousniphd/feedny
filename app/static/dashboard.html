@@ -372,7 +372,7 @@
                     </td>
                     <td>${escapeHtml(fb.content)}</td>
                     <td>${getEmotionEmoji(fb.emotion)}</td>
-                    <td>${deviceIcon(fb.device_type)}</td>
+                    <td title="${escapeHtml([fb.browser, fb.os, fb.country, fb.language].filter(Boolean).join(' · '))}">${deviceIcon(fb.device_type)}</td>
                     <td>${fb.connection_type ? escapeHtml(fb.connection_type) : '—'}${fb.rtt ? ` <span class="text-sm text-muted">(${Math.round(fb.rtt)} ms)</span>` : ''}</td>
                     <td>${formatSeconds(fb.typing_seconds)}</td>
                     <td><span class="badge">${formatDate(fb.created_at)}</span></td>

@@ -804,3 +804,9 @@ input::placeholder, textarea::placeholder {
         margin-left: 0;
     }
 }
+
+/* Keep technical cells on one line */
+#feedbacks-table td:nth-child(5),
+#feedbacks-table td:nth-child(6) {
+    white-space: nowrap;
+}

@@ -48,6 +48,7 @@ from app.database import (
     reset_database,
     create_db_backup,
     list_db_backups,
+    purge_client_events,
     maybe_backup_daily,
     get_feedback_stats,
     get_technical_insights,
@@ -89,7 +90,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.14"
+APP_VERSION = "1.2.15"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -719,6 +720,31 @@ async def update_code(
         raise HTTPException(status_code=400, detail="Ce code est déjà utilisé, veuillez en choisir un autre")
     
     return {"status": "success", "new_code": new_code.upper()}
+
+
+@app.post("/api/admin/telemetry/purge")
+async def purge_telemetry(
+    data: dict = Body(default={}),
+    teacher: dict = Depends(get_current_teacher),
+):
+    """Delete anonymous telemetry (admin only).
+
+    Body (optional): {"before": "YYYY-MM-DD"} to keep recent events only.
+    """
+    if not teacher.get('is_admin'):
+        raise HTTPException(status_code=403, detail="Non autorisé")
+
+    before = (data or {}).get("before")
+    if before:
+        try:
+            datetime.strptime(before, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format attendu : YYYY-MM-DD")
+
+    # Snapshot first: telemetry purge is a destructive operation
+    backup = await asyncio.to_thread(create_db_backup, "avant-purge-tech")
+    deleted = await asyncio.to_thread(purge_client_events, before, None)
+    return {"success": True, "deleted": deleted, "before": before, "backup": backup["name"]}
 
 
 @app.post("/api/backup")

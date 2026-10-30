@@ -314,9 +314,11 @@ def reset_database(teacher_id: Optional[int] = None):
         if teacher_id is not None:
             conn.execute("DELETE FROM device_limits WHERE device_id IN (SELECT device_id FROM feedbacks WHERE teacher_id = ?)", (teacher_id,))
             conn.execute("DELETE FROM feedbacks WHERE teacher_id = ?", (teacher_id,))
+            conn.execute("DELETE FROM client_events WHERE teacher_id = ?", (teacher_id,))
         else:
             conn.execute("DELETE FROM feedbacks")
             conn.execute("DELETE FROM device_limits")
+            conn.execute("DELETE FROM client_events")
         conn.commit()
 
 
@@ -386,6 +388,22 @@ def _count_by(conn, column: str, teacher_id: Optional[int], event: str = "submit
     return [{"label": row["label"], "count": row["count"]} for row in rows]
 
 
+def purge_client_events(before: Optional[str] = None, teacher_id: Optional[int] = None) -> int:
+    """Delete anonymous telemetry rows (optionally before a YYYY-MM-DD date)."""
+    query = "DELETE FROM client_events WHERE 1 = 1"
+    params: list = []
+    if before:
+        query += " AND date(created_at) < date(?)"
+        params.append(before)
+    if teacher_id is not None:
+        query += " AND teacher_id = ?"
+        params.append(teacher_id)
+    with get_db() as conn:
+        cursor = conn.execute(query, params)
+        conn.commit()
+        return cursor.rowcount
+
+
 def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
     """Aggregate anonymous technical context for the dashboard."""
     where = "event = ? AND teacher_id = ?" if teacher_id is not None else "event = ?"
@@ -394,11 +412,11 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
 
     with get_db() as conn:
         joins = conn.execute(
-            f"SELECT COUNT(*) FROM client_events WHERE {join_where}",
+            f"SELECT COUNT(DISTINCT COALESCE(device_id, id)) FROM client_events WHERE {join_where}",
             ("join",) + base_params,
         ).fetchone()[0]
         submits = conn.execute(
-            f"SELECT COUNT(*) FROM client_events WHERE {join_where}",
+            f"SELECT COUNT(DISTINCT COALESCE(device_id, id)) FROM client_events WHERE {join_where}",
             ("submit",) + base_params,
         ).fetchone()[0]
 

@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS client_events (
     screen TEXT,
     viewport TEXT,
     connection_type TEXT,
+    network_type TEXT,
     downlink REAL,
     rtt REAL,
     save_data BOOLEAN,

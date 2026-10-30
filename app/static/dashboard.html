@@ -80,6 +80,10 @@
                         <select id="filter-connection"><option value="">Toutes</option></select>
                     </label>
                     <label class="filter-field">
+                        <span>Réseau</span>
+                        <select id="filter-network"><option value="">Tous</option></select>
+                    </label>
+                    <label class="filter-field">
                         <span>Pays</span>
                         <select id="filter-country"><option value="">Tous</option></select>
                     </label>
@@ -254,6 +258,7 @@
             bindFilter('filter-device', 'device');
             bindFilter('filter-browser', 'browser');
             bindFilter('filter-connection', 'connection');
+            bindFilter('filter-network', 'network');
             bindFilter('filter-country', 'country');
             document.getElementById('filter-text').addEventListener('input', (event) => {
                 filterState.text = event.target.value.trim().toLowerCase();
@@ -261,7 +266,7 @@
             });
             document.getElementById('filter-reset').addEventListener('click', () => {
                 Object.keys(filterState).forEach(key => filterState[key] = '');
-                ['filter-device', 'filter-browser', 'filter-connection', 'filter-country'].forEach(id => {
+                ['filter-device', 'filter-browser', 'filter-connection', 'filter-network', 'filter-country'].forEach(id => {
                     document.getElementById(id).value = '';
                 });
                 document.getElementById('filter-text').value = '';
@@ -308,7 +313,7 @@
 
         let currentWordcloudImage = '';
         let allFeedbacks = [];
-        const filterState = { device: '', browser: '', connection: '', country: '', text: '' };
+        const filterState = { device: '', browser: '', connection: '', network: '', country: '', text: '' };
 
         function deviceIcon(device) {
             if (!device) return '—';
@@ -336,6 +341,7 @@
             if (filterState.device && fb.device_type !== filterState.device) return false;
             if (filterState.browser && fb.browser !== filterState.browser) return false;
             if (filterState.connection && fb.connection_type !== filterState.connection) return false;
+            if (filterState.network && fb.network_type !== filterState.network) return false;
             if (filterState.country && fb.country !== filterState.country) return false;
             if (filterState.text) {
                 const haystack = `${fb.content || ''} ${fb.browser || ''} ${fb.os || ''} ${fb.country || ''}`.toLowerCase();
@@ -373,7 +379,7 @@
                     <td>${escapeHtml(fb.content)}</td>
                     <td>${getEmotionEmoji(fb.emotion)}</td>
                     <td title="${escapeHtml([fb.browser, fb.os, fb.country, fb.language].filter(Boolean).join(' · '))}">${deviceIcon(fb.device_type)}</td>
-                    <td>${fb.connection_type ? escapeHtml(fb.connection_type) : '—'}${fb.rtt ? ` <span class="text-sm text-muted">(${Math.round(fb.rtt)} ms)</span>` : ''}</td>
+                    <td title="${escapeHtml([fb.rtt ? Math.round(fb.rtt) + ' ms' : null, fb.os, fb.country].filter(Boolean).join(' · '))}">${fb.connection_type || fb.network_type ? `${fb.network_type ? escapeHtml(fb.network_type) + ' · ' : ''}${fb.connection_type ? escapeHtml(fb.connection_type) : '—'}${fb.downlink ? ` · ${Number(fb.downlink).toFixed(1)} Mbps` : ''}` : '—'}</td>
                     <td>${formatSeconds(fb.typing_seconds)}</td>
                     <td><span class="badge">${formatDate(fb.created_at)}</span></td>
                     <td>
@@ -402,6 +408,7 @@
                 fillFilter('filter-device', allFeedbacks.map(f => f.device_type));
                 fillFilter('filter-browser', allFeedbacks.map(f => f.browser));
                 fillFilter('filter-connection', allFeedbacks.map(f => f.connection_type));
+                fillFilter('filter-network', allFeedbacks.map(f => f.network_type));
                 fillFilter('filter-country', allFeedbacks.map(f => f.country));
 
                 renderFeedbacks();

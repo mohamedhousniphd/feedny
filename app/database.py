@@ -86,6 +86,7 @@ CLIENT_EVENT_COLUMNS = {
     "pasted": "BOOLEAN",
     "paste_chars": "INTEGER",
     "idle_seconds": "REAL",
+    "network_type": "TEXT",
 }
 
 
@@ -139,6 +140,7 @@ def get_feedbacks_with_context(teacher_id: int = 1) -> list[dict]:
                 COALESCE(es.browser, ej.browser)               AS browser,
                 COALESCE(es.os, ej.os)                         AS os,
                 COALESCE(es.connection_type, ej.connection_type) AS connection_type,
+                COALESCE(es.network_type, ej.network_type)     AS network_type,
                 COALESCE(es.downlink, ej.downlink)             AS downlink,
                 COALESCE(es.rtt, ej.rtt)                       AS rtt,
                 COALESCE(es.country, ej.country)               AS country,
@@ -391,17 +393,18 @@ def save_client_event(event: str, teacher_id: Optional[int], device_id: Optional
             INSERT INTO client_events (
                 event, teacher_id, device_id, device_type, browser, os, user_agent,
                 platform, language, timezone, screen, viewport, connection_type,
-                downlink, rtt, save_data, touch, memory_gb, cores, country,
+                network_type, downlink, rtt, save_data, touch, memory_gb, cores, country,
                 referrer, fill_seconds, first_input_seconds, typing_seconds,
                 total_seconds, keystrokes, backspaces, pasted, paste_chars, idle_seconds
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event, teacher_id, device_id,
                 data.get("device_type"), data.get("browser"), data.get("os"),
                 data.get("user_agent"), data.get("platform"), data.get("language"),
                 data.get("timezone"), data.get("screen"), data.get("viewport"),
-                data.get("connection_type"), data.get("downlink"), data.get("rtt"),
+                data.get("connection_type"), data.get("network_type"),
+                data.get("downlink"), data.get("rtt"),
                 data.get("save_data"), data.get("touch"), data.get("memory_gb"),
                 data.get("cores"), data.get("country"), data.get("referrer"),
                 data.get("fill_seconds"), data.get("first_input_seconds"),
@@ -478,8 +481,11 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             ("submit",) + base_params,
         ).fetchone()
         latency = conn.execute(
-            f"""SELECT AVG(rtt) AS avg_rtt
-                FROM client_events WHERE {where} AND rtt IS NOT NULL""",
+            f"""SELECT AVG(rtt) AS avg_rtt,
+                       AVG(downlink) AS avg_downlink,
+                       SUM(CASE WHEN downlink >= 10 AND rtt < 80 THEN 1 ELSE 0 END) AS fast,
+                       COUNT(CASE WHEN downlink IS NOT NULL AND rtt IS NOT NULL THEN 1 END) AS measured
+                FROM client_events WHERE {where}""",
             ("submit",) + base_params,
         ).fetchone()
         slow_share = conn.execute(
@@ -509,6 +515,8 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             "paste_rate": round((timing["pasted"] or 0) / submits * 100, 1) if submits and timing else None,
             "timed_submits": timing["timed"] if timing else 0,
             "avg_rtt_ms": round(latency["avg_rtt"], 0) if latency and latency["avg_rtt"] else None,
+            "avg_downlink_mbps": round(latency["avg_downlink"], 1) if latency and latency["avg_downlink"] else None,
+            "fast_network_share": round((latency["fast"] or 0) / latency["measured"] * 100, 1) if latency and latency["measured"] else None,
             "slow_network_share": round((slow_share["slow"] or 0) / slow_share["total"] * 100, 1) if slow_share and slow_share["total"] else None,
             "first_seen": dates["first_seen"] if dates else None,
             "last_seen": dates["last_seen"] if dates else None,
@@ -518,6 +526,7 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             "connection_types": _count_by(conn, "connection_type", teacher_id),
             "countries": _count_by(conn, "country", teacher_id),
             "screens": _count_by(conn, "viewport", teacher_id),
+            "network_types": _count_by(conn, "network_type", teacher_id),
         }
 
 

@@ -130,6 +130,7 @@ def collect_client_context(
         "screen": _clean_str(screen, 20),
         "viewport": _clean_str(viewport, 20),
         "connection_type": _clean_str(payload.get("connectionType"), 20),
+        "network_type": _clean_str(payload.get("networkType"), 20),
         "downlink": _clean_number(payload.get("downlink")),
         "rtt": _clean_number(payload.get("rtt")),
         "save_data": _clean_bool(payload.get("saveData")),
@@ -175,6 +176,7 @@ def summarize_technical(insights: Optional[dict]) -> dict:
     browsers = insights.get("browsers") or []
     systems = insights.get("os") or []
     connections = insights.get("connection_types") or []
+    networks = insights.get("network_types") or []
     countries = insights.get("countries") or []
 
     total_submits = insights.get("submits") or 0
@@ -190,10 +192,19 @@ def summarize_technical(insights: Optional[dict]) -> dict:
         lines.append(f"Navigateurs : {top(browsers)}." )
     if systems:
         lines.append(f"Systèmes : {top(systems)}.")
+    if networks:
+        lines.append(f"Réseau : {top(networks)} (wifi / cellulaire, tel que déclaré par l'appareil).")
     if connections:
-        lines.append(f"Connexions : {top(connections)}.")
+        lines.append(f"Génération réseau estimée : {top(connections)} (le navigateur plafonne à 4G).")
         if insights.get("avg_rtt_ms"):
             lines.append(f"Latence réseau moyenne : {insights['avg_rtt_ms']:.0f} ms.")
+        if insights.get("avg_downlink_mbps"):
+            lines.append(f"Débit descendant moyen : {insights['avg_downlink_mbps']:.1f} Mbps.")
+        if insights.get("fast_network_share") is not None:
+            lines.append(
+                "Part de connexions très rapides (>= 10 Mbps et < 80 ms) : "
+                f"{insights['fast_network_share']} %."
+            )
         if insights.get("slow_network_share") is not None:
             lines.append(f"Part de connexions lentes (2G/3G) : {insights['slow_network_share']} %.")
     if countries:
@@ -230,6 +241,8 @@ def summarize_technical(insights: Optional[dict]) -> dict:
         "avg_total": _format_duration(insights.get("avg_total_seconds")),
         "avg_idle": _format_duration(insights.get("avg_idle_seconds")),
         "avg_rtt_ms": insights.get("avg_rtt_ms"),
+        "avg_downlink_mbps": insights.get("avg_downlink_mbps"),
+        "fast_network_share": insights.get("fast_network_share"),
         "slow_network_share": insights.get("slow_network_share"),
         "paste_rate": insights.get("paste_rate"),
         "keystrokes": insights.get("avg_keystrokes"),

@@ -105,6 +105,7 @@
                     : (/Mobi|iPhone|iPod|Android/i.test(nav.userAgent || '') ? 'mobile' : 'desktop'),
                 touch: (nav.maxTouchPoints || 0) > 0,
                 connectionType: conn.effectiveType || '',
+                networkType: conn.type || '',
                 downlink: typeof conn.downlink === 'number' ? conn.downlink : null,
                 rtt: typeof conn.rtt === 'number' ? conn.rtt : null,
                 saveData: typeof conn.saveData === 'boolean' ? conn.saveData : null,

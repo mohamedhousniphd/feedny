@@ -148,6 +148,7 @@ def main() -> int:
         "screen": [1080, 2400],
         "viewport": [412, 915],
         "connectionType": "3g",
+        "networkType": "cellular",
         "downlink": 1.5,
         "rtt": 300,
         "saveData": False,
@@ -191,7 +192,7 @@ def main() -> int:
     check(
         "GET /api/feedbacks/details (contexte par feedback)",
         r.status_code == 200 and bool(sample.get("device_type")) and bool(sample.get("connection_type")),
-        f"{sample.get('device_type')} / {sample.get('browser')} / {sample.get('connection_type')}",
+        f"{sample.get('device_type')} / {sample.get('browser')} / {sample.get('network_type')} / {sample.get('connection_type')}",
     )
 
     # 6. Statistiques

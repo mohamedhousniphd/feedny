@@ -184,6 +184,16 @@ def main() -> int:
             break
     check(f"Création de {len(created_ids)} feedbacks démo", len(created_ids) == len(demo), str(len(created_ids)))
 
+    # 5b. Feedbacks + contexte technique (appareil, navigateur, connexion)
+    r = client.get("/api/feedbacks/details")
+    details = (r.json() or {}).get("feedbacks", []) if r.status_code == 200 else []
+    sample = next((f for f in details if f.get("device_type")), {})
+    check(
+        "GET /api/feedbacks/details (contexte par feedback)",
+        r.status_code == 200 and bool(sample.get("device_type")) and bool(sample.get("connection_type")),
+        f"{sample.get('device_type')} / {sample.get('browser')} / {sample.get('connection_type')}",
+    )
+
     # 6. Statistiques
     r = client.get("/api/stats")
     stats = r.json() if r.status_code == 200 else {}

@@ -64,13 +64,44 @@
         <!-- Feedbacks List -->
         <section>
             <h2>Feedbacks Reçus</h2>
+
+            <div class="card feedback-filters">
+                <div class="filter-row">
+                    <label class="filter-field">
+                        <span>Appareil</span>
+                        <select id="filter-device"><option value="">Tous</option></select>
+                    </label>
+                    <label class="filter-field">
+                        <span>Navigateur</span>
+                        <select id="filter-browser"><option value="">Tous</option></select>
+                    </label>
+                    <label class="filter-field">
+                        <span>Connexion</span>
+                        <select id="filter-connection"><option value="">Toutes</option></select>
+                    </label>
+                    <label class="filter-field">
+                        <span>Pays</span>
+                        <select id="filter-country"><option value="">Tous</option></select>
+                    </label>
+                    <label class="filter-field filter-search">
+                        <span>Recherche</span>
+                        <input type="search" id="filter-text" placeholder="mot-clé…">
+                    </label>
+                    <button id="filter-reset" class="btn btn-secondary btn-sm">Réinitialiser</button>
+                    <span id="filter-count" class="text-sm text-muted"></span>
+                </div>
+            </div>
+
             <div class="table-container">
                 <table id="feedbacks-table">
                     <thead>
                         <tr>
                             <th width="40"><input type="checkbox" id="select-all"></th>
                             <th>Commentaire</th>
-                            <th width="100">Humeur</th>
+                            <th width="80">Humeur</th>
+                            <th width="110">Appareil</th>
+                            <th width="110">Connexion</th>
+                            <th width="95">Temps</th>
                             <th width="150">Date</th>
                             <th width="80">Statut</th>
                         </tr>
@@ -213,6 +244,29 @@
             document.getElementById('import-file-input').addEventListener('change', importJSON);
             document.getElementById('reset-btn').addEventListener('click', resetDatabase);
             document.getElementById('backup-btn').addEventListener('click', backupDatabase);
+
+            const bindFilter = (id, key) => {
+                document.getElementById(id).addEventListener('change', (event) => {
+                    filterState[key] = event.target.value;
+                    renderFeedbacks();
+                });
+            };
+            bindFilter('filter-device', 'device');
+            bindFilter('filter-browser', 'browser');
+            bindFilter('filter-connection', 'connection');
+            bindFilter('filter-country', 'country');
+            document.getElementById('filter-text').addEventListener('input', (event) => {
+                filterState.text = event.target.value.trim().toLowerCase();
+                renderFeedbacks();
+            });
+            document.getElementById('filter-reset').addEventListener('click', () => {
+                Object.keys(filterState).forEach(key => filterState[key] = '');
+                ['filter-device', 'filter-browser', 'filter-connection', 'filter-country'].forEach(id => {
+                    document.getElementById(id).value = '';
+                });
+                document.getElementById('filter-text').value = '';
+                renderFeedbacks();
+            });
             document.getElementById('analyze-btn').addEventListener('click', analyzeFeedbacks);
             document.getElementById('select-all').addEventListener('change', toggleAllCheckboxes);
             document.getElementById('edit-code-btn').addEventListener('click', editUniqueCode);
@@ -253,54 +307,108 @@
         }
 
         let currentWordcloudImage = '';
+        let allFeedbacks = [];
+        const filterState = { device: '', browser: '', connection: '', country: '', text: '' };
+
+        function deviceIcon(device) {
+            if (!device) return '—';
+            const map = { mobile: '📱', tablet: '📲', desktop: '💻' };
+            return `${map[device] || '❔'} ${escapeHtml(device)}`;
+        }
+
+        function formatSeconds(value) {
+            if (value === null || value === undefined || value === '' || isNaN(value)) return '—';
+            const seconds = Number(value);
+            if (seconds < 60) return `${Math.round(seconds)} s`;
+            return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`;
+        }
+
+        function fillFilter(selectId, values) {
+            const select = document.getElementById(selectId);
+            const current = select.value;
+            const options = [...new Set(values.filter(Boolean))].sort();
+            select.innerHTML = '<option value="">Tous</option>' +
+                options.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+            if (options.includes(current)) select.value = current;
+        }
+
+        function matchesFilters(fb) {
+            if (filterState.device && fb.device_type !== filterState.device) return false;
+            if (filterState.browser && fb.browser !== filterState.browser) return false;
+            if (filterState.connection && fb.connection_type !== filterState.connection) return false;
+            if (filterState.country && fb.country !== filterState.country) return false;
+            if (filterState.text) {
+                const haystack = `${fb.content || ''} ${fb.browser || ''} ${fb.os || ''} ${fb.country || ''}`.toLowerCase();
+                if (!haystack.includes(filterState.text)) return false;
+            }
+            return true;
+        }
+
+        function renderFeedbacks() {
+            const tbody = document.getElementById('feedbacks-body');
+            const noFeedbacks = document.getElementById('no-feedbacks');
+            const countLabel = document.getElementById('filter-count');
+            const visible = allFeedbacks.filter(matchesFilters);
+
+            countLabel.textContent = allFeedbacks.length
+                ? `${visible.length}/${allFeedbacks.length} feedback(s)`
+                : '';
+
+            if (visible.length === 0) {
+                tbody.innerHTML = '';
+                noFeedbacks.classList.remove('hidden');
+                noFeedbacks.querySelector('p').textContent = allFeedbacks.length
+                    ? 'Aucun feedback ne correspond aux filtres'
+                    : 'Aucun feedback reçu pour le moment';
+                return;
+            }
+
+            noFeedbacks.classList.add('hidden');
+
+            tbody.innerHTML = visible.map(fb => `
+                <tr data-id="${fb.id}" data-device="${escapeHtml(fb.device_type || '')}" data-connection="${escapeHtml(fb.connection_type || '')}">
+                    <td>
+                        <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
+                    </td>
+                    <td>${escapeHtml(fb.content)}</td>
+                    <td>${getEmotionEmoji(fb.emotion)}</td>
+                    <td>${deviceIcon(fb.device_type)}</td>
+                    <td>${fb.connection_type ? escapeHtml(fb.connection_type) : '—'}${fb.rtt ? ` <span class="text-sm text-muted">(${Math.round(fb.rtt)} ms)</span>` : ''}</td>
+                    <td>${formatSeconds(fb.typing_seconds)}</td>
+                    <td><span class="badge">${formatDate(fb.created_at)}</span></td>
+                    <td>
+                        ${fb.included_in_analysis ? '<span style="color: var(--color-success); font-weight: 600;">Inclus</span>' : '<span style="color: var(--color-text-muted);">Exclu</span>'}
+                    </td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('.feedback-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', async function () {
+                    await toggleFeedback(parseInt(this.value));
+                });
+            });
+        }
 
         async function loadFeedbacks() {
             try {
-                const response = await fetch('/api/feedbacks');
+                const response = await fetch('/api/feedbacks/details');
                 if (response.status === 401) {
                     window.location.href = '/login';
                     return;
                 }
                 const data = await response.json();
+                allFeedbacks = data.feedbacks || [];
 
-                const tbody = document.getElementById('feedbacks-body');
-                const noFeedbacks = document.getElementById('no-feedbacks');
+                fillFilter('filter-device', allFeedbacks.map(f => f.device_type));
+                fillFilter('filter-browser', allFeedbacks.map(f => f.browser));
+                fillFilter('filter-connection', allFeedbacks.map(f => f.connection_type));
+                fillFilter('filter-country', allFeedbacks.map(f => f.country));
 
-                if (data.feedbacks.length === 0) {
-                    tbody.innerHTML = '';
-                    noFeedbacks.classList.remove('hidden');
-                    return;
-                }
-
-                noFeedbacks.classList.add('hidden');
-
-                tbody.innerHTML = data.feedbacks.map(fb => `
-                    <tr data-id="${fb.id}">
-                        <td>
-                            <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
-                        </td>
-                        <td>${escapeHtml(fb.content)}</td>
-                        <td>${getEmotionEmoji(fb.emotion)}</td>
-                        <td><span class="badge">${formatDate(fb.created_at)}</span></td>
-                        <td>
-                            ${fb.included_in_analysis ? '<span style="color: var(--color-success); font-weight: 600;">Inclus</span>' : '<span style="color: var(--color-text-muted);">Exclu</span>'}
-                        </td>
-                    </tr>
-                `).join('');
-
-                // Add change listeners to checkboxes
-                document.querySelectorAll('.feedback-checkbox').forEach(checkbox => {
-                    checkbox.addEventListener('change', async function () {
-                        const feedbackId = parseInt(this.value);
-                        await toggleFeedback(feedbackId);
-                    });
-                });
-
+                renderFeedbacks();
             } catch (error) {
                 console.error('Error loading feedbacks:', error);
             }
         }
-
         async function loadStats() {
             try {
                 const response = await fetch('/api/stats');

@@ -123,6 +123,50 @@ def insert_feedback(content: str, device_id: str, emotion: Optional[int] = None,
         return cursor.lastrowid
 
 
+def get_feedbacks_with_context(teacher_id: int = 1) -> list[dict]:
+    """Feedbacks + the anonymous technical context of their device.
+
+    Prefers the "submit" event (captured with the feedback) and falls back to
+    the "join" event of the same device.
+    """
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                f.id, f.content, f.device_id, f.created_at,
+                f.included_in_analysis, f.emotion,
+                COALESCE(es.device_type, ej.device_type)       AS device_type,
+                COALESCE(es.browser, ej.browser)               AS browser,
+                COALESCE(es.os, ej.os)                         AS os,
+                COALESCE(es.connection_type, ej.connection_type) AS connection_type,
+                COALESCE(es.downlink, ej.downlink)             AS downlink,
+                COALESCE(es.rtt, ej.rtt)                       AS rtt,
+                COALESCE(es.country, ej.country)               AS country,
+                COALESCE(es.language, ej.language)             AS language,
+                COALESCE(es.typing_seconds, ej.typing_seconds) AS typing_seconds,
+                COALESCE(es.first_input_seconds, ej.first_input_seconds) AS first_input_seconds,
+                COALESCE(es.total_seconds, ej.total_seconds)   AS total_seconds,
+                COALESCE(es.keystrokes, ej.keystrokes)         AS keystrokes,
+                COALESCE(es.pasted, ej.pasted)                 AS pasted
+            FROM feedbacks f
+            LEFT JOIN client_events es ON es.id = (
+                SELECT id FROM client_events
+                WHERE device_id = f.device_id AND teacher_id = f.teacher_id AND event = 'submit'
+                ORDER BY id DESC LIMIT 1
+            )
+            LEFT JOIN client_events ej ON ej.id = (
+                SELECT id FROM client_events
+                WHERE device_id = f.device_id AND teacher_id = f.teacher_id AND event = 'join'
+                ORDER BY id DESC LIMIT 1
+            )
+            WHERE f.teacher_id = ?
+            ORDER BY f.created_at DESC
+            """,
+            (teacher_id,),
+        )
+        return [dict(row) for row in rows]
+
+
 def get_all_feedbacks(teacher_id: int = 1) -> list[dict]:
     """Get all feedbacks for a specific teacher ordered by creation date."""
     with get_db() as conn:

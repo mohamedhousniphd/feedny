@@ -39,6 +39,7 @@ from app.database import (
     init_db,
     insert_feedback,
     get_all_feedbacks,
+    get_feedbacks_with_context,
     get_feedback_by_id,
     toggle_feedback_inclusion,
     get_feedbacks_by_ids,
@@ -90,7 +91,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.15"
+APP_VERSION = "1.2.16"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -577,6 +578,13 @@ async def get_status(request: Request):
 
 # API Routes - Teacher
 # (Other routes like /api/teacher/login, /api/auth/signup are already implemented)
+
+
+@app.get("/api/feedbacks/details")
+async def list_feedbacks_with_context(teacher: dict = Depends(get_current_teacher)):
+    """Feedbacks with their anonymous device/network/timing context (teacher only)."""
+    feedbacks = await asyncio.to_thread(get_feedbacks_with_context, teacher['id'])
+    return {"feedbacks": feedbacks, "total": len(feedbacks)}
 
 
 @app.get("/api/feedbacks", response_model=FeedbackListResponse)

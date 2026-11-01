@@ -100,7 +100,7 @@
                 </div>
             </div>
 
-            <p class="table-hint">↔ Glissez horizontalement dans le tableau pour voir toutes les colonnes</p>
+            <p class="table-hint">↔ Faites défiler le tableau ou consultez les fiches ci-dessous</p>
             <div class="table-container">
                 <table id="feedbacks-table">
                     <thead>
@@ -123,6 +123,8 @@
                     <p>Aucun feedback reçu pour le moment</p>
                 </div>
             </div>
+
+            <div id="feedback-cards" class="feedback-cards hidden"></div>
         </section>
 
         <!-- Analyze Call to Action -->
@@ -296,6 +298,12 @@
                 filterState.text = event.target.value.trim().toLowerCase();
                 renderFeedbacks();
             });
+            let resizeTimer = null;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(renderFeedbacks, 200);
+            });
+
             document.getElementById('filter-reset').addEventListener('click', () => {
                 Object.keys(filterState).forEach(key => filterState[key] = '');
                 ['filter-device', 'filter-browser', 'filter-connection', 'filter-network', 'filter-country'].forEach(id => {
@@ -383,10 +391,50 @@
             return true;
         }
 
+        function isMobileLayout() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function renderFeedbackCards(visible) {
+            const container = document.getElementById('feedback-cards');
+            container.innerHTML = visible.map(fb => {
+                const meta = [
+                    fb.device_type ? `📱 ${escapeHtml(fb.device_type)}` : null,
+                    fb.network_type ? escapeHtml(fb.network_type) : null,
+                    fb.connection_type ? escapeHtml(fb.connection_type) : null,
+                    fb.downlink ? `${Number(fb.downlink).toFixed(1)} Mbps` : null,
+                    fb.typing_seconds != null ? formatSeconds(fb.typing_seconds) : null,
+                    formatDate(fb.created_at)
+                ].filter(Boolean).map(item => `<span class="feedback-meta-item">${item}</span>`).join('');
+
+                return `
+                    <article class="feedback-card" data-id="${fb.id}">
+                        <header>
+                            <label class="feedback-check">
+                                <input type="checkbox" class="feedback-checkbox" value="${fb.id}" ${fb.included_in_analysis ? 'checked' : ''}>
+                                <span>${fb.included_in_analysis ? 'Inclus' : 'Exclu'}</span>
+                            </label>
+                            <span class="feedback-emotion">${getEmotionEmoji(fb.emotion)}</span>
+                        </header>
+                        <p class="feedback-content">${escapeHtml(fb.content)}</p>
+                        <div class="feedback-meta">${meta}</div>
+                    </article>`;
+            }).join('');
+
+            container.querySelectorAll('.feedback-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', async function () {
+                    await toggleFeedback(parseInt(this.value));
+                });
+            });
+        }
+
         function renderFeedbacks() {
             const tbody = document.getElementById('feedbacks-body');
             const noFeedbacks = document.getElementById('no-feedbacks');
             const countLabel = document.getElementById('filter-count');
+            const tableWrap = document.querySelector('#feedbacks-table')?.closest('.table-container');
+            const hint = document.querySelector('.table-hint');
+            const cards = document.getElementById('feedback-cards');
             const visible = allFeedbacks.filter(matchesFilters);
 
             countLabel.textContent = allFeedbacks.length
@@ -399,10 +447,24 @@
                 noFeedbacks.querySelector('p').textContent = allFeedbacks.length
                     ? 'Aucun feedback ne correspond aux filtres'
                     : 'Aucun feedback reçu pour le moment';
+                const cardsEmpty = document.getElementById('feedback-cards');
+                if (cardsEmpty) cardsEmpty.classList.add('hidden');
                 return;
             }
 
             noFeedbacks.classList.add('hidden');
+
+            if (isMobileLayout()) {
+                if (tableWrap) tableWrap.classList.add('hidden');
+                if (hint) hint.classList.add('hidden');
+                cards.classList.remove('hidden');
+                renderFeedbackCards(visible);
+                return;
+            }
+
+            if (cards) cards.classList.add('hidden');
+            if (tableWrap) tableWrap.classList.remove('hidden');
+            if (hint) hint.classList.remove('hidden');
 
             tbody.innerHTML = visible.map(fb => `
                 <tr data-id="${fb.id}" data-device="${escapeHtml(fb.device_type || '')}" data-connection="${escapeHtml(fb.connection_type || '')}">

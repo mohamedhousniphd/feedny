@@ -96,7 +96,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.21"
+APP_VERSION = "1.2.22"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -624,10 +624,8 @@ async def update_question(
 @app.get("/api/stats")
 async def get_stats(teacher: dict = Depends(get_current_teacher)):
     """Get feedback statistics for the dashboard."""
-    feedbacks = get_all_feedbacks(teacher['id'])
-    total = len(feedbacks)
-    selected = sum(1 for fb in feedbacks if fb['included_in_analysis'])
-    return {"total": total, "selected": selected}
+    stats = await asyncio.to_thread(get_feedback_stats, teacher['id'])
+    return stats
 
 
 @app.get("/api/status", response_model=StatusResponse)

@@ -199,6 +199,7 @@ def main() -> int:
     r = client.get("/api/stats")
     stats = r.json() if r.status_code == 200 else {}
     check("GET /api/stats", r.status_code == 200 and stats.get("total", 0) >= len(created_ids), json.dumps(stats))
+    check("GET /api/stats (humeur moyenne)", bool(stats.get("avg_emotion")), f"{stats.get('avg_emotion')}/10 sur {stats.get('emotion_responses')}")
 
     # 7. Sélection pour analyse
     toggled = 0
@@ -275,7 +276,11 @@ def main() -> int:
         isinstance(chart.get("image"), str) and chart["image"].startswith("data:image/png;base64,")
         for chart in charts.values()
     )
-    check("GET /api/insights/charts (PNG)", r.status_code == 200 and len(charts) >= 3 and valid_charts, f"{len(charts)} graphique(s)")
+    check(
+        "GET /api/insights/charts (PNG)",
+        r.status_code == 200 and len(charts) >= 4 and valid_charts and "emotion" in charts,
+        f"{len(charts)} graphique(s) dont humeur={('emotion' in charts)}",
+    )
 
     # 11. Historique des analyses
     r = client.get("/api/analyses")

@@ -270,6 +270,11 @@ def summarize_technical(insights: Optional[dict]) -> dict:
             f"Préférences : mode sombre {insights['dark_share']} %, "
             f"mouvement réduit {insights.get('reduced_motion_share') or 0} %."
         )
+    if insights.get("avg_emotion") is not None:
+        lines.append(
+            f"Humeur moyenne : {insights['avg_emotion']:.1f}/10 "
+            f"sur {insights.get('emotion_responses') or 0} réponse(s)."
+        )
     if insights.get("paste_rate") is not None:
         lines.append(f"Feedbacks collés (copier-coller) : {insights['paste_rate']} %.")
 

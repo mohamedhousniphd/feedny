@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 PALETTE = ["#4f46e5", "#06b6d4", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"]
 TEXT = "#1f2937"
@@ -140,6 +141,56 @@ def _grouped_bars(labels, series, title, ylabel, colors=None, suffix="", bar_col
     return _finish(fig)
 
 
+
+
+EMOTION_LABELS = {
+    1: "1 · très inquiet", 2: "2 · inquiet", 3: "3 · peu à l'aise", 4: "4 · neutre",
+    5: "5 · curieux", 6: "6 · intéressé", 7: "7 · motivé", 8: "8 · très motivé",
+    9: "9 · enthousiaste", 10: "10 · très enthousiaste",
+}
+
+EMOTION_COLORS = {
+    1: "#dc2626", 2: "#ef4444", 3: "#f97316", 4: "#f59e0b", 5: "#eab308",
+    6: "#84cc16", 7: "#22c55e", 8: "#10b981", 9: "#14b8a6", 10: "#0ea5e9",
+}
+
+
+def _emotion_chart(insights):
+    counts = insights.get("emotion_counts") or []
+    average = insights.get("avg_emotion")
+    responses = insights.get("emotion_responses") or 0
+    if not counts or not responses:
+        return None
+
+    values = {int(item["label"]): item["count"] for item in counts}
+    labels = [EMOTION_LABELS.get(score, str(score)) for score in range(1, 11)]
+    data = [values.get(score, 0) for score in range(1, 11)]
+    colors = [EMOTION_COLORS.get(score, "#9ca3af") for score in range(1, 11)]
+
+    fig, ax = plt.subplots(figsize=(8.0, 4.5))
+    bars = ax.barh(labels, data, color=colors, height=0.65)
+    ax.invert_yaxis()
+    ax.bar_label(bars, padding=4, color=TEXT, fontsize=10)
+
+
+    ax.set_xlabel("Nombre de feedbacks", color=MUTED, fontsize=10)
+    ax.set_title(
+        f"Humeur moyenne : {average:.1f}/10 ({responses} réponses)" if average else "Humeur des étudiants",
+        color=TEXT, fontsize=14, fontweight="bold", loc="left", pad=16,
+    )
+    ax.grid(axis="x", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(GRID)
+    ax.tick_params(colors=MUTED, labelsize=9, length=0)
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_xlim(0, max(data) * 1.15 if max(data) else 1)
+    fig.tight_layout()
+    return _finish(fig)
+
+
 def build_charts(insights: Optional[dict]) -> dict:
     """Return {key: {"title": ..., "image": data-uri}} for every available chart."""
     if not insights:
@@ -150,6 +201,9 @@ def build_charts(insights: Optional[dict]) -> dict:
     def add(key: str, title: str, image: Optional[str]):
         if image:
             charts[key] = {"title": title, "image": image}
+
+    # Average feeling (emotion 1-10)
+    add("emotion", "Humeur moyenne", _emotion_chart(insights))
 
     # Participation funnel
     add(

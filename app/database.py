@@ -569,6 +569,18 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             ("join",) + base_params,
         ).fetchone()
 
+        emotion_stats = conn.execute(
+            """SELECT AVG(emotion) AS avg_emotion, COUNT(emotion) AS responses
+               FROM feedbacks WHERE teacher_id = ? AND emotion IS NOT NULL""",
+            (teacher_id,),
+        ).fetchone()
+        emotion_counts = conn.execute(
+            """SELECT emotion AS label, COUNT(*) AS count
+               FROM feedbacks WHERE teacher_id = ? AND emotion IS NOT NULL
+               GROUP BY emotion ORDER BY emotion""",
+            (teacher_id,),
+        ).fetchall()
+
         perf = conn.execute(
             f"""SELECT AVG(load_ms) AS avg_load, AVG(ttfb_ms) AS avg_ttfb,
                        AVG(first_paint_ms) AS avg_fp, AVG(lcp_ms) AS avg_lcp,
@@ -609,6 +621,9 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             "avg_ttfb_ms": round(perf["avg_ttfb"], 0) if perf and perf["avg_ttfb"] else None,
             "avg_first_paint_ms": round(perf["avg_fp"], 0) if perf and perf["avg_fp"] else None,
             "avg_lcp_ms": round(perf["avg_lcp"], 0) if perf and perf["avg_lcp"] else None,
+            "avg_emotion": round(emotion_stats["avg_emotion"], 2) if emotion_stats and emotion_stats["avg_emotion"] else None,
+            "emotion_responses": emotion_stats["responses"] if emotion_stats else 0,
+            "emotion_counts": [{"label": row["label"], "count": row["count"]} for row in emotion_counts],
             "abandons": leaves["leaves"] if leaves else 0,
             "avg_abandon_seconds": round(leaves["avg_left_seconds"], 0) if leaves and leaves["avg_left_seconds"] else None,
             "dark_share": round((perf["dark"] or 0) / perf["total"] * 100, 1) if perf and perf["total"] else None,
@@ -631,14 +646,18 @@ def get_feedback_stats(teacher_id: int = 1) -> dict:
         cursor = conn.execute("""
             SELECT
                 COUNT(*) as total,
-                SUM(CASE WHEN included_in_analysis = 1 THEN 1 ELSE 0 END) as selected
+                SUM(CASE WHEN included_in_analysis = 1 THEN 1 ELSE 0 END) as selected,
+                AVG(emotion) as avg_emotion,
+                COUNT(emotion) as emotion_responses
             FROM feedbacks
             WHERE teacher_id = ?
         """, (teacher_id,))
         row = cursor.fetchone()
         return {
             "total": row["total"] or 0,
-            "selected": row["selected"] or 0
+            "selected": row["selected"] or 0,
+            "avg_emotion": round(row["avg_emotion"], 2) if row["avg_emotion"] else None,
+            "emotion_responses": row["emotion_responses"] or 0,
         }
 
 

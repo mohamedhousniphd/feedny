@@ -38,6 +38,10 @@
                 <div class="stat-label">Feedbacks Sélectionnés</div>
                 <div class="stat-number" id="selected-feedbacks">0</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-label">Humeur moyenne</div>
+                <div class="stat-number" id="avg-emotion">—</div>
+            </div>
         </div>
 
         <!-- Quick Actions -->
@@ -452,6 +456,9 @@
                 const stats = await response.json();
                 document.getElementById('total-feedbacks').textContent = stats.total;
                 document.getElementById('selected-feedbacks').textContent = stats.selected;
+                document.getElementById('avg-emotion').textContent = stats.avg_emotion
+                    ? `${Number(stats.avg_emotion).toFixed(1)}/10`
+                    : '—';
 
                 // Show admin link if credits is infinity (admin role)
                 const credits = document.getElementById('credits-count').textContent;

@@ -814,7 +814,7 @@ input::placeholder, textarea::placeholder {
 /* Slide-ready charts */
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 16px;
     margin-top: 12px;
 }
@@ -843,4 +843,77 @@ input::placeholder, textarea::placeholder {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-text);
+}
+
+
+/* ---------- Mobile dashboard fixes (tables must scroll, not squeeze) ---------- */
+@media (max-width: 768px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Let columns size to their content instead of squeezing words */
+    table {
+        table-layout: auto;
+    }
+
+    #feedbacks-table {
+        min-width: 900px;
+    }
+
+    #feedbacks-table th,
+    #feedbacks-table td {
+        white-space: nowrap;
+    }
+
+    /* The comment is the only column allowed to wrap */
+    #feedbacks-table th:nth-child(2),
+    #feedbacks-table td:nth-child(2) {
+        white-space: normal;
+        min-width: 220px;
+        max-width: 320px;
+        word-break: normal;
+        overflow-wrap: anywhere;
+    }
+
+    #history-container table,
+    .card .table-container table {
+        min-width: 620px;
+    }
+
+    /* Keep the horizontal scroll obvious without a scrollbar jump */
+    .table-container::after {
+        content: "";
+        display: block;
+        height: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-controls {
+        justify-content: flex-start;
+    }
+
+    .code-display,
+    .credits-display {
+        max-width: 100%;
+    }
+
+    .stat-number {
+        font-size: 1.6rem;
+    }
+}
+
+.table-hint {
+    display: none;
+    margin: 0 0 8px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+    .table-hint {
+        display: block;
+    }
 }

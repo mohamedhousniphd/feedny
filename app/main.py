@@ -96,7 +96,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.22"
+APP_VERSION = "1.2.23"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:

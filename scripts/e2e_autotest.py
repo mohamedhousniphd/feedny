@@ -268,6 +268,15 @@ def main() -> int:
         f"joins={insights.get('joins')} submits={insights.get('submits')} conv={insights.get('conversion_rate')}%",
     )
 
+    # 10c. Graphiques prêts pour les slides
+    r = client.get("/api/insights/charts?refresh=true")
+    charts = (r.json() or {}).get("charts", {})
+    valid_charts = all(
+        isinstance(chart.get("image"), str) and chart["image"].startswith("data:image/png;base64,")
+        for chart in charts.values()
+    )
+    check("GET /api/insights/charts (PNG)", r.status_code == 200 and len(charts) >= 3 and valid_charts, f"{len(charts)} graphique(s)")
+
     # 11. Historique des analyses
     r = client.get("/api/analyses")
     analyses = r.json().get("analyses", []) if r.status_code == 200 else []

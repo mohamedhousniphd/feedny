@@ -159,6 +159,19 @@
         </section>
 
 
+        <!-- Slide-ready charts -->
+        <section>
+            <h2>Graphiques</h2>
+            <div class="card">
+                <p class="text-sm text-muted">
+                    Images PNG 16:9 sur fond blanc, prêtes à insérer dans une présentation.
+                    Cliquez sur ⬇ pour télécharger.
+                </p>
+                <div id="charts-empty" class="no-data"><p>Pas encore assez de données pour les graphiques</p></div>
+                <div id="charts-grid" class="charts-grid hidden"></div>
+            </div>
+        </section>
+
         <!-- Anonymous technical context -->
         <section>
             <h2>Contexte technique (anonyme)</h2>
@@ -290,6 +303,7 @@
             document.getElementById('download-wordcloud-btn').addEventListener('click', downloadWordcloud);
             document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
             loadTechnicalInsights();
+            loadCharts();
         });
 
         async function editUniqueCode() {
@@ -607,6 +621,52 @@
             }
         }
 
+
+
+        async function loadCharts() {
+            try {
+                const response = await fetch('/api/insights/charts');
+                if (!response.ok) return;
+                const data = await response.json();
+                const charts = data.charts || {};
+                const keys = Object.keys(charts);
+                const grid = document.getElementById('charts-grid');
+                const empty = document.getElementById('charts-empty');
+
+                if (!keys.length) {
+                    empty.classList.remove('hidden');
+                    grid.classList.add('hidden');
+                    return;
+                }
+
+                empty.classList.add('hidden');
+                grid.classList.remove('hidden');
+                grid.innerHTML = keys.map(key => {
+                    const chart = charts[key];
+                    return `
+                        <figure class="chart-card">
+                            <img src="${chart.image}" alt="${escapeHtml(chart.title)}">
+                            <figcaption>
+                                <span>${escapeHtml(chart.title)}</span>
+                                <button class="btn btn-sm btn-secondary chart-download" data-key="${escapeHtml(key)}" data-title="${escapeHtml(chart.title)}">⬇ PNG</button>
+                            </figcaption>
+                        </figure>`;
+                }).join('');
+
+                grid.querySelectorAll('.chart-download').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const chart = charts[button.dataset.key];
+                        if (!chart) return;
+                        const link = document.createElement('a');
+                        link.href = chart.image;
+                        link.download = `afeedny-${button.dataset.key}.png`;
+                        link.click();
+                    });
+                });
+            } catch (error) {
+                console.error('Charts error:', error);
+            }
+        }
 
         async function loadTechnicalInsights() {
             try {

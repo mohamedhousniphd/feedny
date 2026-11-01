@@ -810,3 +810,37 @@ input::placeholder, textarea::placeholder {
 #feedbacks-table td:nth-child(6) {
     white-space: nowrap;
 }
+
+/* Slide-ready charts */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.chart-card {
+    margin: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    background-color: #ffffff;
+}
+
+.chart-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+}
+
+.chart-card figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+}

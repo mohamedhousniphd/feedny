@@ -1,5 +1,6 @@
 import html
 import json
+import time
 import os
 import sys
 import uuid
@@ -87,6 +88,7 @@ from app.models import (
     ReceiptApprovalRequest
 )
 from app.services.analysis import process_feedback_analysis
+from app.services.charts import build_charts
 from app.services.client_info import (
     collect_client_context,
     request_country,
@@ -94,7 +96,7 @@ from app.services.client_info import (
 )
 
 # Initialize FastAPI app
-APP_VERSION = "1.2.19"
+APP_VERSION = "1.2.20"
 app = FastAPI(title="Feedny", version=APP_VERSION)
 
 def inject_common(html_content: str) -> str:
@@ -564,6 +566,34 @@ async def technical_insights(
         "summary": summarize_technical(insights),
         "errors": errors,
     }
+
+
+_CHARTS_CACHE: dict = {}
+_CHARTS_TTL_SECONDS = 120
+
+
+@app.get("/api/insights/charts")
+async def technical_charts(
+    refresh: bool = False,
+    teacher: dict = Depends(get_current_teacher),
+):
+    """Slide-ready PNG charts (data URI) built from the anonymous metrics."""
+    cache_key = teacher['id']
+    cached = _CHARTS_CACHE.get(cache_key)
+    now = time.time()
+    if not refresh and cached and now - cached["at"] < _CHARTS_TTL_SECONDS:
+        return cached["payload"]
+
+    insights = await asyncio.to_thread(get_technical_insights, teacher['id'])
+    charts = await asyncio.to_thread(build_charts, insights)
+    payload = {
+        "charts": charts,
+        "count": len(charts),
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    if charts:  # never cache an empty result (new data would never show)
+        _CHARTS_CACHE[cache_key] = {"at": now, "payload": payload}
+    return payload
 
 
 @app.get("/api/question")

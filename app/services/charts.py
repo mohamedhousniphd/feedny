@@ -63,8 +63,15 @@ def _bar(labels, values, title, ylabel="", horizontal=False, color=None):
     return _finish(fig)
 
 
+def _known(items):
+    return [
+        item for item in (items or [])
+        if (str(item.get("label") or "").lower() not in {"inconnu", "unknown", "none", ""})
+    ]
+
+
 def _donut(items, title):
-    clean = [(str(item.get("label")), item.get("count", 0)) for item in (items or []) if item.get("count")]
+    clean = [(str(item.get("label")), item.get("count", 0)) for item in _known(items) if item.get("count")]
     if not clean:
         return None
     labels = [c[0] for c in clean]
@@ -169,8 +176,8 @@ def build_charts(insights: Optional[dict]) -> dict:
         "browsers",
         "Navigateurs",
         _bar(
-            [item["label"] for item in (insights.get("browsers") or [])][:6],
-            [item["count"] for item in (insights.get("browsers") or [])][:6],
+            [item["label"] for item in _known(insights.get("browsers"))][:6],
+            [item["count"] for item in _known(insights.get("browsers"))][:6],
             "Navigateurs utilisés",
             "Feedbacks",
             horizontal=True,

@@ -527,10 +527,13 @@ def get_technical_insights(teacher_id: Optional[int] = None) -> dict:
             f"SELECT COUNT(DISTINCT COALESCE(device_id, id)) FROM client_events WHERE {join_where}",
             ("join",) + base_params,
         ).fetchone()[0]
-        submits = conn.execute(
-            f"SELECT COUNT(DISTINCT COALESCE(device_id, id)) FROM client_events WHERE {join_where}",
-            ("submit",) + base_params,
-        ).fetchone()[0]
+        # Real feedbacks in the DB (telemetry submits can double-count retries)
+        if teacher_id is None:
+            submits = conn.execute("SELECT COUNT(*) FROM feedbacks").fetchone()[0]
+        else:
+            submits = conn.execute(
+                "SELECT COUNT(*) FROM feedbacks WHERE teacher_id = ?", (teacher_id,)
+            ).fetchone()[0]
 
         timing = conn.execute(
             f"""SELECT AVG(fill_seconds) AS avg_fill,
